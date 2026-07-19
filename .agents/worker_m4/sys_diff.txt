@@ -1,0 +1,611 @@
+diff --git a/electron/system.ts b/electron/system.ts
+index 503a83b..183b644 100644
+--- a/electron/system.ts
++++ b/electron/system.ts
+@@ -6,6 +6,13 @@ import { join, extname, resolve } from 'path'
+ import { homedir, tmpdir } from 'os'
+ import axios from 'axios'
+ import si from 'systeminformation'
++import { setupMaintenanceHandlers } from './system-maintenance'
++import { setupPackagesHandlers } from './system-packages'
++import { setupBtrfsHandlers } from './system-btrfs'
++import { setupDockerHandlers } from './system-docker'
++import { setupAiHandlers } from './system-ai'
++import { setupDesktopHandlers } from './system-desktop'
++import { setupSecurityHandlers } from './system-security'
+ 
+ const execPromise = promisify(exec)
+ 
+@@ -17,6 +24,11 @@ async function detectAurHelper(candidates = ['paru', 'yay', 'trizen']): Promise<
+ }
+ 
+ export function setupSystemHandlers(win: any) {
++  setupDockerHandlers(win)
++  setupAiHandlers(win)
++  setupDesktopHandlers(win)
++  setupSecurityHandlers(win)
++
+   const notify = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
+     win.webContents.send('notification', { title, message, type })
+   }
+@@ -235,64 +247,6 @@ export function setupSystemHandlers(win: any) {
+     return { success: res.success, log: res.success ? 'Upgrade completed.' : 'Upgrade failed or cancelled.' }
+   })
+ 
+-  ipcMain.handle('ai-update-components', async () => {
+-    // Auto-snapshot before AI stack update
+-    try { await execPromise('pkexec snapper --no-dbus -c root create -t pre -p -d "Vortex AI update"') } catch {}
+-
+-    streamLog('> Initializing AI Component synchronization...')
+-
+-    const comfyDir = join(homedir(), '.comfyui-headless')
+-    if (existsSync(comfyDir)) {
+-      streamLog('> Updating ComfyUI Core...')
+-      await runStreamingCmd('git', ['pull'], { cwd: comfyDir })
+-    } else {
+-      streamLog('> ComfyUI not found, skipping.')
+-    }
+-
+-    try {
+-      const nodesDir = join(homedir(), '.comfyui-headless', 'custom_nodes')
+-      const dirs = readdirSync(nodesDir, { withFileTypes: true })
+-        .filter(d => d.isDirectory() && !d.name.startsWith('.') && d.name !== '__pycache__')
+-        .map(d => d.name)
+-      
+-      dirs.forEach(node => streamLog(`> Updating Node: ${node}...`))
+-      await Promise.all(dirs.map(node => runStreamingCmd('git', ['pull'], { cwd: join(nodesDir, node) })))
+-    } catch (e: any) {
+-      streamLog(`Nodes Scan Error: ${e.message}`)
+-    }
+-
+-    try {
+-      const { stdout: statusOut } = await execPromise('systemctl is-active ollama').catch(() => ({ stdout: 'inactive' }))
+-      if (statusOut.trim() !== 'active') {
+-        streamLog('> Ollama service is inactive. Skipping neural weights sync.')
+-      } else {
+-        const { stdout: listOut } = await execPromise('ollama list --format json || ollama list')
+-        streamLog('> Synchronizing Ollama Neural Weights...')
+-        
+-        let modelNames: string[] = []
+-        try {
+-          const json = JSON.parse(listOut)
+-          modelNames = json.models?.map((m: any) => m.name) || []
+-        } catch {
+-          const lines = listOut.trim().split('\n')
+-          const startIdx = lines[0].toLowerCase().includes('name') ? 1 : 0
+-          modelNames = lines.slice(startIdx)
+-            .map(l => l.split(/\s+/)[0])
+-            .filter(n => n && n !== 'NAME')
+-        }
+-
+-        for (const model of modelNames) {
+-          streamLog(`> Pulling weights for [${model}]...`)
+-          await runStreamingCmd('ollama', ['pull', model])
+-        }
+-      }
+-    } catch (e: any) {
+-      streamLog(`Ollama Sync Error: ${e.message}`)
+-    }
+-
+-    notify('AI Update', 'AI Component synchronization finished', 'success')
+-    return { success: true, log: 'AI Components sync finished.' }
+-  })
+ 
+   // System Cleanup
+   ipcMain.handle('system-cleanup', async (_, type: 'cache' | 'orphans' | 'logs' | 'all') => {
+@@ -315,15 +269,6 @@ export function setupSystemHandlers(win: any) {
+     }
+   })
+ 
+-  // ComfyUI VRAM Purge
+-  ipcMain.handle('comfy-purge', async () => {
+-    try {
+-      await axios.post('http://127.0.0.1:8188/free', { unload_models: true, free_memory: true })
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+ 
+   // System Optimization
+   ipcMain.handle('system-optimize', async (_, type: 'ssd' | 'services' | 'performance') => {
+@@ -718,342 +663,9 @@ export function setupSystemHandlers(win: any) {
+     } catch (e: any) { return { success: false, error: e.message, lines: [] } }
+   })
+ 
+-  // ── Startup apps manager ──────────────────────────────────────────────────
+-  ipcMain.handle('startup-list', async () => {
+-    const autostartDir = join(homedir(), '.config', 'autostart')
+-    const desktopEntries: any[] = []
+-    if (existsSync(autostartDir)) {
+-      try {
+-        readdirSync(autostartDir).filter(f => f.endsWith('.desktop')).forEach(file => {
+-          const path = join(autostartDir, file)
+-          try {
+-            const content = readFileSync(path, 'utf8')
+-            const get = (key: string) => content.match(new RegExp(`^${key}=(.*)`, 'm'))?.[1]?.trim() ?? ''
+-            const enabledRaw = get('X-GNOME-Autostart-enabled')
+-            desktopEntries.push({
+-              filename: file,
+-              path,
+-              name:    get('Name') || file,
+-              exec:    get('Exec'),
+-              comment: get('Comment'),
+-              icon:    get('Icon'),
+-              enabled: enabledRaw !== 'false',
+-            })
+-          } catch {}
+-        })
+-      } catch {}
+-    }
+-
+-    let systemdServices: any[] = []
+-    try {
+-      const { stdout } = await execPromise('systemctl --user list-units --type=service --all --no-pager --plain --no-legend')
+-      systemdServices = stdout.trim().split('\n').filter(Boolean).map(line => {
+-        const parts = line.trim().split(/\s+/)
+-        return { unit: parts[0] ?? '', active: parts[2] ?? '', description: parts.slice(4).join(' ') }
+-      })
+-    } catch {}
+-
+-    return { desktopEntries, systemdServices }
+-  })
+-
+-  ipcMain.handle('startup-toggle-desktop', async (_, { path: filePath, enabled }: { path: string; enabled: boolean }) => {
+-    try {
+-      const allowed = join(homedir(), '.config', 'autostart')
+-      if (!resolve(filePath).startsWith(allowed)) return { success: false, error: 'Path outside allowed directory' }
+-      let content = readFileSync(filePath, 'utf8')
+-      if (content.includes('X-GNOME-Autostart-enabled=')) {
+-        content = content.replace(/^X-GNOME-Autostart-enabled=.*/m, `X-GNOME-Autostart-enabled=${enabled}`)
+-      } else {
+-        content = content.replace(/^\[Desktop Entry\]/m, `[Desktop Entry]\nX-GNOME-Autostart-enabled=${enabled}`)
+-      }
+-      writeFileSync(filePath, content, 'utf8')
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  ipcMain.handle('startup-delete-desktop', async (_, filePath: string) => {
+-    try {
+-      const allowed = join(homedir(), '.config', 'autostart')
+-      if (!resolve(filePath).startsWith(allowed)) return { success: false, error: 'Path outside allowed directory' }
+-      unlinkSync(filePath)
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  ipcMain.handle('startup-toggle-systemd', async (_, { unit, enable }: { unit: string; enable: boolean }) => {
+-    try {
+-      const safe = unit.replace(/[^a-zA-Z0-9@._-]/g, '')
+-      await execPromise(`systemctl --user ${enable ? 'enable' : 'disable'} ${safe}`)
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  ipcMain.handle('startup-add-desktop', async (_, { name, exec: execCmd, comment }: { name: string; exec: string; comment?: string }) => {
+-    try {
+-      if (!name.trim() || !execCmd.trim()) return { success: false, error: 'Name and Exec are required' }
+-      const autostartDir = join(homedir(), '.config', 'autostart')
+-      if (!existsSync(autostartDir)) mkdirSync(autostartDir, { recursive: true })
+-      const filename = name.trim().replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase() + '.desktop'
+-      const filePath = join(autostartDir, filename)
+-      const lines = ['[Desktop Entry]', 'Type=Application', `Name=${name.trim()}`, `Exec=${execCmd.trim()}`]
+-      if (comment?.trim()) lines.push(`Comment=${comment.trim()}`)
+-      lines.push('X-GNOME-Autostart-enabled=true', '')
+-      writeFileSync(filePath, lines.join('\n'), 'utf8')
+-      return { success: true, path: filePath }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  // ── Docker ────────────────────────────────────────────────────────────────
+-  ipcMain.handle('docker-list', async () => {
+-    try {
+-      const { stdout: psOut } = await execPromise(`docker ps -a --format '{{json .}}'`)
+-      const containers = psOut.trim().split('\n').filter(Boolean).map(line => {
+-        try { return JSON.parse(line) } catch { return null }
+-      }).filter(Boolean)
+-
+-      let statsMap: Record<string, any> = {}
+-      try {
+-        const { stdout: statsOut } = await execPromise(`docker stats --no-stream --format '{{json .}}'`)
+-        statsOut.trim().split('\n').filter(Boolean).forEach(line => {
+-          try {
+-            const s = JSON.parse(line)
+-            statsMap[s.ID.slice(0, 12)] = s
+-          } catch {}
+-        })
+-      } catch {}
+-
+-      return containers.map((c: any) => {
+-        const id12 = (c.ID || '').slice(0, 12)
+-        const stat = statsMap[id12] ?? {}
+-        const cpuStr: string = stat.CPUPerc ?? '0%'
+-        const cpu = parseFloat(cpuStr) || 0
+-        const memStr: string = stat.MemUsage ?? '0B / 0B'
+-        const [usedStr, limitStr] = memStr.split(' / ')
+-        const parseMem = (s: string) => {
+-          const m = s?.match(/([\d.]+)\s*(B|kB|MiB|GiB|MB|GB)/i)
+-          if (!m) return 0
+-          const v = parseFloat(m[1])
+-          const u = m[2].toLowerCase()
+-          if (u === 'gib' || u === 'gb') return v * 1024 * 1024 * 1024
+-          if (u === 'mib' || u === 'mb') return v * 1024 * 1024
+-          if (u === 'kb') return v * 1024
+-          return v
+-        }
+-        const netStr: string = stat.NetIO ?? '0B / 0B'
+-        const [rxStr, txStr] = netStr.split(' / ')
+-        return {
+-          id:         c.ID,
+-          name:       (c.Names || c.Name || '').replace(/^\//, ''),
+-          image:      c.Image,
+-          state:      c.State?.toLowerCase() ?? 'unknown',
+-          status:     c.Status,
+-          cpu_percent: cpu,
+-          mem_usage:   parseMem(usedStr),
+-          mem_limit:   parseMem(limitStr),
+-          net_io:     { rx: parseMem(rxStr), tx: parseMem(txStr) },
+-        }
+-      })
+-    } catch (e: any) {
+-      return { error: e.message }
+-    }
+-  })
+-
+-  ipcMain.handle('docker-control', async (_, { id, action }: { id: string; action: string }) => {
+-    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')
+-    const safeAction = ['start', 'stop', 'restart', 'pause', 'unpause'].includes(action) ? action : 'stop'
+-    try {
+-      await execPromise(`docker ${safeAction} ${safeId}`)
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  ipcMain.handle('docker-logs', async (_, { id, lines = 100 }: { id: string; lines?: number }) => {
+-    const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')
+-    try {
+-      const { stdout, stderr } = await execPromise(`docker logs --tail ${lines} ${safeId}`)
+-      return (stdout || '') + (stderr || '')
+-    } catch (e: any) {
+-      return `Failed to fetch logs: ${e.message}`
+-    }
+-  })
+-
+-  // Kyber I/O scheduler tuning for AI workloads
+-  // Profiles: 'ai' = fast reads for model load, 'default' = stock Kyber values
+-  ipcMain.handle('io-tune-for-ai', async (_, mode: 'ai' | 'default') => {
+-    const profiles = {
+-      ai:      { read_lat_nsec: 1000000, write_lat_nsec: 20000000 },
+-      default: { read_lat_nsec: 2000000, write_lat_nsec: 10000000 },
+-    }
+-    if (!Object.prototype.hasOwnProperty.call(profiles, mode)) {
+-      return { success: false, error: 'Invalid mode' }
+-    }
+-    const { read_lat_nsec, write_lat_nsec } = profiles[mode]
+-    const results: string[] = []
+-    try {
+-      const { stdout: blockDevs } = await execPromise('ls /sys/block/')
+-      const nvmes = blockDevs.trim().split('\n').filter(d => d.startsWith('nvme'))
+-      for (const dev of nvmes) {
+-        const base = `/sys/block/${dev}/queue/iosched`
+-        try {
+-          await execPromise(`echo ${read_lat_nsec} | pkexec tee ${base}/read_lat_nsec`)
+-          await execPromise(`echo ${write_lat_nsec} | pkexec tee ${base}/write_lat_nsec`)
+-          results.push(`${dev}: ok`)
+-        } catch (e: any) {
+-          results.push(`${dev}: ${e.message}`)
+-        }
+-      }
+-      return { success: true, output: results.join('\n') }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  // SCX sched-ext scheduler control via scx_loader DBus
+-  ipcMain.handle('scx-status', async () => {
+-    try {
+-      const [curSched, curMode, state] = await Promise.all([
+-        execPromise("busctl get-property org.scx.Loader /org/scx/Loader org.scx.Loader CurrentScheduler 2>/dev/null || echo 's \"unknown\"'"),
+-        execPromise("busctl get-property org.scx.Loader /org/scx/Loader org.scx.Loader SchedulerMode 2>/dev/null || echo 'u 0'"),
+-        execPromise('cat /sys/kernel/sched_ext/state 2>/dev/null || echo "disabled"'),
+-      ])
+-      const schedulerName = (curSched.stdout.match(/"([^"]+)"/) || [])[1] ?? 'unknown'
+-      const modeVal = parseInt((curMode.stdout.match(/\d+/) || ['0'])[0], 10)
+-      const stateStr = state.stdout.trim()
+-      const { stdout: supported } = await execPromise("busctl get-property org.scx.Loader /org/scx/Loader org.scx.Loader SupportedSchedulers 2>/dev/null || echo 'as 0'")
+-      const schedulers = (supported.stdout.match(/"([^"]+)"/g) || []).map((s: string) => s.replace(/"/g, ''))
+-      return { success: true, scheduler: schedulerName, mode: modeVal, state: stateStr, schedulers }
+-    } catch (e: any) {
+-      return { success: false, scheduler: 'unknown', mode: 0, state: 'disabled', schedulers: [], error: e.message }
+-    }
+-  })
+ 
+-  ipcMain.handle('scx-set-scheduler', async (_, { name, mode = 0 }: { name: string; mode?: number }) => {
+-    if (!/^[\w]+$/.test(name)) return { success: false, error: 'Invalid scheduler name' }
+-    const safeMode = Math.max(0, Math.min(3, parseInt(String(mode), 10)))
+-    try {
+-      await execPromise(`busctl call org.scx.Loader /org/scx/Loader org.scx.Loader SwitchScheduler su "${name}" ${safeMode}`)
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+ 
+-  ipcMain.handle('scx-stop', async () => {
+-    try {
+-      await execPromise('busctl call org.scx.Loader /org/scx/Loader org.scx.Loader StopScheduler')
+-      return { success: true }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  ipcMain.handle('scx-metrics', async () => {
+-    try {
+-      const { stdout: state } = await execPromise('cat /sys/kernel/sched_ext/state 2>/dev/null || echo "disabled"')
+-      const { stdout: seq } = await execPromise('cat /sys/kernel/sched_ext/enable_seq 2>/dev/null || echo "0"')
+-      const { stdout: rejected } = await execPromise('cat /sys/kernel/sched_ext/nr_rejected 2>/dev/null || echo "0"')
+-      return { success: true, state: state.trim(), enableSeq: parseInt(seq.trim(), 10), nrRejected: parseInt(rejected.trim(), 10) }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+-
+-  // BORE scheduler tuner — applies sysctl presets if available
+-  const BORE_PROFILES: Record<string, Record<string, number>> = {
+-    desktop:   { 'kernel.sched_burst_penalty_scale': 1280, 'kernel.sched_burst_smoothness_long': 1, 'kernel.sched_burst_smoothness_short': 0, 'kernel.sched_burst_fork_atavistic': 2, 'kernel.sched_burst_parity_threshold': 2, 'kernel.sched_burst_cache_lifetime': 60000000 },
+-    ai_heavy:  { 'kernel.sched_burst_penalty_scale': 320,  'kernel.sched_burst_smoothness_long': 1, 'kernel.sched_burst_smoothness_short': 0, 'kernel.sched_burst_fork_atavistic': 0, 'kernel.sched_burst_parity_threshold': 0, 'kernel.sched_burst_cache_lifetime': 120000000 },
+-    balanced:  { 'kernel.sched_burst_penalty_scale': 1024, 'kernel.sched_burst_smoothness_long': 1, 'kernel.sched_burst_smoothness_short': 0, 'kernel.sched_burst_fork_atavistic': 2, 'kernel.sched_burst_parity_threshold': 2, 'kernel.sched_burst_cache_lifetime': 60000000 },
+-    gaming:    { 'kernel.sched_burst_penalty_scale': 640,  'kernel.sched_burst_smoothness_long': 1, 'kernel.sched_burst_smoothness_short': 0, 'kernel.sched_burst_fork_atavistic': 0, 'kernel.sched_burst_parity_threshold': 2, 'kernel.sched_burst_cache_lifetime': 60000000 },
+-  }
+-  ipcMain.handle('bore-set-profile', async (_, profile: string) => {
+-    if (!Object.prototype.hasOwnProperty.call(BORE_PROFILES, profile)) {
+-      return { success: false, error: 'Invalid profile' }
+-    }
+-    const params = BORE_PROFILES[profile]
+-    const results: string[] = []
+-    let anyApplied = false
+-    for (const [key, val] of Object.entries(params)) {
+-      try {
+-        await execPromise(`sysctl -w ${key}=${val}`)
+-        results.push(`${key}=${val}`)
+-        anyApplied = true
+-      } catch {
+-        results.push(`${key}: not available`)
+-      }
+-    }
+-    return { success: anyApplied, output: results.join('\n'), partial: results.some(r => r.includes('not available')) }
+-  })
+-
+-  // Ollama VRAM budget modes — writes systemd override and restarts service
+-  // 'max'    : 0 overhead, 2 parallel, 2 models (current)
+-  // 'budget' : 2GB overhead reserved, 1 model, 1 parallel — preserves headroom for desktop
+-  ipcMain.handle('ollama-set-vram-mode', async (_, mode: 'max' | 'budget') => {
+-    const configs: Record<string, string> = {
+-      max: [
+-        '[Service]',
+-        'Environment="OLLAMA_GPU_OVERHEAD=0"',
+-        'Environment="OLLAMA_MAX_LOADED_MODELS=2"',
+-        'Environment="OLLAMA_NUM_PARALLEL=2"',
+-        'Environment="OLLAMA_FLASH_ATTENTION=1"',
+-        'Environment="OLLAMA_KEEP_ALIVE=30m"',
+-        'Environment="OLLAMA_HOST=0.0.0.0"',
+-        'Environment="OLLAMA_NUM_GPU=40"',
+-      ].join('\n'),
+-      budget: [
+-        '[Service]',
+-        'Environment="OLLAMA_GPU_OVERHEAD=2147483648"',
+-        'Environment="OLLAMA_MAX_LOADED_MODELS=1"',
+-        'Environment="OLLAMA_NUM_PARALLEL=1"',
+-        'Environment="OLLAMA_FLASH_ATTENTION=1"',
+-        'Environment="OLLAMA_KEEP_ALIVE=10m"',
+-        'Environment="OLLAMA_HOST=0.0.0.0"',
+-        'Environment="OLLAMA_NUM_GPU=40"',
+-      ].join('\n'),
+-    }
+-    if (!Object.prototype.hasOwnProperty.call(configs, mode)) {
+-      return { success: false, error: 'Invalid mode' }
+-    }
+-    try {
+-      const overridePath = '/etc/systemd/system/ollama.service.d/override.conf'
+-      const content = configs[mode]
+-      await execPromise(`echo '${content}' | pkexec tee ${overridePath}`)
+-      await execPromise('pkexec systemctl daemon-reload')
+-      await execPromise('pkexec systemctl restart ollama.service')
+-      return { success: true, output: `VRAM mode set to ${mode}` }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+ 
+-  // Pin Ollama to all cores (0-7) and raise priority — 7800X3D has single CCD V-Cache
+-  ipcMain.handle('ollama-pin-vcache', async () => {
+-    try {
+-      const { stdout } = await execPromise('pgrep -x ollama || pgrep -f "ollama serve"')
+-      const pids = stdout.trim().split('\n').filter(Boolean)
+-      if (pids.length === 0) return { success: false, error: 'Ollama process not found' }
+-      const results: string[] = []
+-      for (const pid of pids) {
+-        const safePid = parseInt(pid, 10)
+-        if (isNaN(safePid)) continue
+-        await execPromise(`taskset -cp 0-7 ${safePid}`)
+-        await execPromise(`renice -n -5 -p ${safePid}`)
+-        results.push(`PID ${safePid}: pinned 0-7, renice -5`)
+-      }
+-      return { success: true, output: results.join('\n') }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+ 
+   // CachyOS Hardware Detection (chwd)
+   ipcMain.handle('chwd-detect', async () => {
+@@ -1195,34 +807,7 @@ export function setupSystemHandlers(win: any) {
+     }
+   })
+ 
+-  // 2026 Zero-Latency Game Mode Macro (7800X3D + 4070 Ti Super)
+-  ipcMain.handle('game-mode-toggle', async (_, enable: boolean) => {
+-    return await runGameModeToggle(enable)
+-  })
+-
+-  // 2026 WinBoat Sandbox (Windows in Docker)
+-  ipcMain.handle('winboat-detect', async () => {
+-    try {
+-      const { stdout } = await execPromise('which winboat 2>/dev/null || echo ""')
+-      return { success: !!stdout.trim() }
+-    } catch { return { success: false } }
+-  })
+ 
+-  ipcMain.handle('winboat-run', async (_, exePath: string) => {
+-    if (!exePath) return { success: false, error: 'No EXE path provided' }
+-    try {
+-      // 2026 CachyOS WinBoat Orchestration
+-      // Mapping the EXE and enabling GPU + Xwayland for high-perf sandbox
+-      const cmd = `winboat run --gpu --xwayland "${exePath}"`
+-      // We run this in the background as it launches a window
+-      exec(cmd, (error, stdout, stderr) => {
+-        if (error) console.error(`[Vortex] WinBoat Error: ${error.message}`)
+-      })
+-      return { success: true, output: 'Sandbox session initialized.' }
+-    } catch (e: any) {
+-      return { success: false, error: e.message }
+-    }
+-  })
+ 
+   // 2026 x86-64-v4 Architecture Auditor
+   ipcMain.handle('system-audit-arch', async () => {
+@@ -1258,121 +843,7 @@ export function setupSystemHandlers(win: any) {
+     }
+   })
+ 
+-  // App Launcher
+-  ipcMain.handle('apps-list', async () => {
+-    try {
+-      const dirs = [
+-        `${homedir()}/.local/share/applications`,
+-        '/usr/share/applications',
+-        '/usr/local/share/applications',
+-      ]
+-      const apps: { name: string; exec: string; comment: string; categories: string; icon: string; path: string }[] = []
+-      const seen = new Set<string>()
+-      for (const dir of dirs) {
+-        try {
+-          const files = readdirSync(dir).filter(f => f.endsWith('.desktop'))
+-          for (const file of files) {
+-            try {
+-              const content = readFileSync(join(dir, file), 'utf-8')
+-              const get = (key: string) => {
+-                const m = content.match(new RegExp(`^${key}=(.+)$`, 'm'))
+-                return m ? m[1].trim() : ''
+-              }
+-              if (get('NoDisplay') === 'true' || get('Hidden') === 'true') continue
+-              const name = get('Name')
+-              if (!name || seen.has(name)) continue
+-              seen.add(name)
+-              apps.push({ name, exec: get('Exec'), comment: get('Comment'), categories: get('Categories'), icon: get('Icon'), path: join(dir, file) })
+-            } catch {}
+-          }
+-        } catch {}
+-      }
+-      apps.sort((a, b) => a.name.localeCompare(b.name))
+-      return { success: true, apps }
+-    } catch (e: any) {
+-      return { success: false, apps: [], error: e.message }
+-    }
+-  })
+ 
+-  ipcMain.handle('apps-launch', async (_, { exec }: { exec: string }) => {
+-    try {
+-      const clean = exec.replace(/%[uUfFdDnNickvm]/g, '').trim()
+-      spawn('bash', ['-c', clean], { detached: true, stdio: 'ignore' }).unref()
+-      return { success: true }
+-    } catch (e: any) { return { success: false, error: e.message } }
+-  })
+-
+-  // Arch News Feed
+-  ipcMain.handle('arch-news-fetch', async () => {
+-    try {
+-      const { data } = await axios.get('https://archlinux.org/feeds/news/', { timeout: 8000, responseType: 'text' })
+-      const items: { title: string; link: string; date: string; summary: string }[] = []
+-      const itemRe = /<item>([\s\S]*?)<\/item>/g
+-      let m: RegExpExecArray | null
+-      while ((m = itemRe.exec(data)) !== null) {
+-        const block = m[1]
+-        const title = (block.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/) ?? [])[1] ?? ''
+-        const link  = (block.match(/<link>(.*?)<\/link>/) ?? [])[1] ?? ''
+-        const date  = (block.match(/<pubDate>(.*?)<\/pubDate>/) ?? [])[1] ?? ''
+-        const desc  = (block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/) ?? [])[1] ?? ''
+-        const summary = desc.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 300)
+-        items.push({ title: title.trim(), link: link.trim(), date: date.trim(), summary })
+-      }
+-      return { success: true, items: items.slice(0, 10) }
+-    } catch (e: any) {
+-      return { success: false, items: [], error: e.message }
+-    }
+-  })
+-
+-  // Dotfile Vault
+-  ipcMain.handle('vault-list-backups', async () => {
+-    try {
+-      const dir = `${homedir()}/Vortex-Backups`
+-      await execPromise(`mkdir -p "${dir}"`)
+-      const { stdout } = await execPromise(`ls -t "${dir}" 2>/dev/null || true`)
+-      const files = stdout.split('\n').map(f => f.trim()).filter(f => f.endsWith('.tar.gz'))
+-      const backups = files.map(f => {
+-        const m = f.match(/^vault_(.+)\.tar\.gz$/)
+-        const tsStr = m ? m[1].replace(/_/g, ':').replace('T', 'T') : ''
+-        const ts = new Date(tsStr).getTime()
+-        return { filename: f, ts: isNaN(ts) ? 0 : ts, path: `${dir}/${f}` }
+-      })
+-      return { success: true, backups }
+-    } catch (e: any) { return { success: false, backups: [], error: e.message } }
+-  })
+-
+-  ipcMain.handle('vault-create', async (_, { paths }: { paths: string[] }) => {
+-    try {
+-      const dir = `${homedir()}/Vortex-Backups`
+-      await execPromise(`mkdir -p "${dir}"`)
+-      const ts = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '')
+-      const outFile = `${dir}/vault_${ts}.tar.gz`
+-      const expandedPaths = paths.map(p => p.replace(/^~/, homedir()))
+-      const safeList = expandedPaths.map(p => `"${p.replace(/"/g, '\\"')}"`).join(' ')
+-      await execPromise(`tar -czf "${outFile}" ${safeList} 2>/dev/null || tar -czf "${outFile}" ${safeList}`)
+-      return { success: true, filename: `vault_${ts}.tar.gz` }
+-    } catch (e: any) { return { success: false, error: e.message } }
+-  })
+-
+-  ipcMain.handle('vault-restore', async (_, { filename }: { filename: string }) => {
+-    try {
+-      const dir = `${homedir()}/Vortex-Backups`
+-      const safeFile = filename.replace(/[^a-zA-Z0-9._\-]/g, '')
+-      const fullPath = `${dir}/${safeFile}`
+-      if (!fullPath.startsWith(dir)) throw new Error('Invalid filename')
+-      await execPromise(`tar -xzf "${fullPath}" -C /`)
+-      return { success: true }
+-    } catch (e: any) { return { success: false, error: e.message } }
+-  })
+-
+-  ipcMain.handle('vault-delete', async (_, { filename }: { filename: string }) => {
+-    try {
+-      const dir = `${homedir()}/Vortex-Backups`
+-      const safeFile = filename.replace(/[^a-zA-Z0-9._\-]/g, '')
+-      await execPromise(`rm -f "${dir}/${safeFile}"`)
+-      return { success: true }
+-    } catch (e: any) { return { success: false, error: e.message } }
+-  })
+ 
+   // Benchmark
+   ipcMain.handle('benchmark-run', async (_, { tests }: { tests: string[] }) => {

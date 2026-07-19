@@ -1,0 +1,299 @@
+diff --git a/src/components/AssistantView.tsx b/src/components/AssistantView.tsx
+index 5f9c9ca..ae89af2 100644
+--- a/src/components/AssistantView.tsx
++++ b/src/components/AssistantView.tsx
+@@ -1,6 +1,6 @@
+-import { useState, useRef, useEffect, useMemo, memo } from 'react'
++import { useState, useRef, useEffect, useMemo, memo, type ComponentPropsWithoutRef } from 'react'
+ import { createPortal } from 'react-dom'
+-import { useOllama, type Session } from '../hooks/useOllama'
++import { useOllama, type Session, type OllamaUiMessage } from '../hooks/useOllama'
+ import { notify } from '../lib/notifications'
+ import { motion, AnimatePresence } from 'framer-motion'
+ import { Send, Square, Bot, User, Loader2, AlertCircle, Activity, FolderOpen, RotateCcw, MessageSquare, Plus, Trash2, Check, X, Zap, Wrench, ChevronDown, ChevronRight, Terminal, Paperclip, Layers, Wand2, Copy, Network, Brain, Mic, MicOff, Volume2, VolumeX } from 'lucide-react'
+@@ -13,6 +13,9 @@ import ArtifactView from './ArtifactView'
+ import { useTheme } from './ThemeProvider'
+ import { consumeTerminalQuery } from '../lib/terminalBridge'
+ 
++
++
++
+ export default function AssistantView() {
+   const { playSound } = useTheme()
+   const {
+@@ -66,17 +69,11 @@ export default function AssistantView() {
+     }
+   }, [showContextPicker])
+   
+-  const [input, setInput] = useState(() => localStorage.getItem('vortex-ai-input') || '')
++  const [input, setInput] = useState(() => localStorage.getItem('vortex-ai-input') || consumeTerminalQuery() || '')
+ 
+   useEffect(() => {
+     localStorage.setItem('vortex-ai-input', input)
+   }, [input])
+-
+-  // Pick up any pending query forwarded from the terminal via terminalBridge
+-  useEffect(() => {
+-    const q = consumeTerminalQuery()
+-    if (q) setInput(q)
+-  }, [])
+   const [isDiagnosing, setIsDiagnosing] = useState(false)
+   const [project, setProject] = useState<{ path: string, fileCount: number } | null>(null)
+   const [isScanning, setIsScanning] = useState(false)
+@@ -108,15 +105,15 @@ export default function AssistantView() {
+         const b64 = btoa(String.fromCharCode(...new Uint8Array(arr)))
+         setIsTranscribing(true)
+         try {
+-          const res = await (window as any).electron?.voiceTranscribe?.({ audioBase64: b64, mimeType: mime })
++          const res = await window.electron.voiceTranscribe?.({ audioBase64: b64, mimeType: mime })
+           if (res?.success && res.text) setInput(prev => (prev ? prev + ' ' : '') + res.text)
+           else notify('Transcription failed', res?.error || 'Whisper not available', 'error')
+         } finally { setIsTranscribing(false) }
+       }
+       rec.start()
+       setIsRecording(true)
+-    } catch (e: any) {
+-      notify('Microphone unavailable', e.message || 'Could not access microphone', 'error')
++    } catch (e) {
++      notify('Microphone unavailable', e instanceof Error ? e.message : String(e), 'error')
+     }
+   }
+ 
+@@ -132,7 +129,7 @@ export default function AssistantView() {
+   const [isSpeaking, setIsSpeaking] = useState(false)
+   const stopSpeech = () => {
+     const a = currentAudioRef.current
+-    if (a) { try { a.pause(); a.currentTime = 0 } catch {} }
++    if (a) { try { a.pause(); a.currentTime = 0 } catch (err) { void err } }
+     currentAudioRef.current = null
+     setIsSpeaking(false)
+   }
+@@ -150,7 +147,7 @@ export default function AssistantView() {
+           .trim()
+           .slice(0, 800)
+         if (clean) {
+-          ;(window as any).electron?.voiceSpeak?.({ text: clean }).then((res: any) => {
++          window.electron.voiceSpeak?.({ text: clean }).then((res) => {
+             if (res?.success && res.audioBase64) {
+               try {
+                 stopSpeech() // interrupt any previous playback first
+@@ -197,8 +194,8 @@ export default function AssistantView() {
+ 
+   useEffect(() => {
+     async function checkProject() {
+-      const status = await (window as any).electron.ragStatus()
+-      if (status.path) setProject(status)
++      const status = await window.electron.ragStatus()
++      if (status.path) setProject({ path: status.path, fileCount: status.fileCount })
+     }
+     checkProject()
+   }, [])
+@@ -213,7 +210,7 @@ export default function AssistantView() {
+   const handleSelectProject = async () => {
+     setIsScanning(true)
+     try {
+-      const res = await (window as any).electron.ragSelectProject()
++      const res = await window.electron.ragSelectProject()
+       if (res) setProject(res)
+     } finally {
+       setIsScanning(false)
+@@ -231,20 +228,20 @@ export default function AssistantView() {
+     // Only inject heavy system context if the user is asking a real question (not just saying hi)
+     if (!isGreeting) {
+       if (contextFlags.memory) {
+-        const memories = await (window as any).electron.memoryGetAll()
++        const memories = await window.electron.memoryGetAll()
+         if (memories && memories.length > 0) {
+-          const facts = memories.map((m: any) => `- ${m.fact}`).join('\n')
++          const facts = memories.map((m) => `- ${m.fact}`).join('\n')
+           finalPrompt = `Persistent Memory (Learned Facts):\n${facts}\n\n${finalPrompt}`
+         }
+       }
+ 
+       if (project && contextFlags.rag) {
+-        const context = await (window as any).electron.ragGetContext(text)
++        const context = await window.electron.ragGetContext(text)
+         if (context) finalPrompt = `${context}\n\nUser Question: ${finalPrompt}`
+       }
+ 
+       if (contextFlags.terminal) {
+-        const termBuffer: string = await (window as any).electron.ptyGetBuffer?.() ?? ''
++        const termBuffer: string = await window.electron.ptyGetBuffer?.() ?? ''
+         if (termBuffer.trim().length > 80) {
+           finalPrompt = `Recent terminal output:\n\`\`\`\n${termBuffer.slice(-2000)}\n\`\`\`\n\n${finalPrompt}`
+         }
+@@ -280,15 +277,15 @@ export default function AssistantView() {
+   }
+ 
+   const handleAttachFile = async () => {
+-    const result = await (window as any).electron.dialogOpenFile()
++    const result = await window.electron.dialogOpenFile()
+     if (!result || 'error' in result) return
+ 
+     const ext = result.name.split('.').pop()?.toLowerCase()
+     const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext || '')
+ 
+     if (isImage) {
+-      const base64 = await (window as any).electron.systemReadLocalImage(result.path)
+-      if (base64 && !base64.error) {
++      const base64 = await window.electron.systemReadLocalImage(result.path)
++      if (base64 && typeof base64 === 'string') {
+         setAttachedFile({ name: result.name, content: base64, type: 'image' })
+       }
+     } else {
+@@ -301,7 +298,7 @@ export default function AssistantView() {
+     if (isStreaming || isDiagnosing) return
+     setIsDiagnosing(true)
+     try {
+-      const logs = await (window as any).electron.systemGetErrorLogs(20)
++      const logs = await window.electron.systemGetErrorLogs(20)
+       const prompt = `I am experiencing some system issues. Here are the last 20 critical entries from my journalctl logs:\n\n\`\`\`\n${logs}\n\`\`\`\n\nPlease analyze these logs, explain what might be going wrong, and suggest a fix.`
+       sendMessage(prompt)
+     } catch (e) {
+@@ -737,7 +734,7 @@ export default function AssistantView() {
+               </div>
+             </motion.div>
+           )}
+-          {messages.map((msg: any, i: number) => {
++          {messages.map((msg: OllamaUiMessage, i: number) => {
+             if (msg.role === 'tool_step') {
+               return (
+                 <motion.div key={`ts-${msg.stepId}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+@@ -866,13 +863,20 @@ export default function AssistantView() {
+             onClick={handleAttachFile}
+             title="Attach a file"
+             style={{ padding: '8px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', color: '#52525b', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', transition: 'all 0.15s' }}
+-            onMouseEnter={e => { (e.currentTarget).style.borderColor = 'rgba(168,85,247,0.3)'; (e.currentTarget).style.color = '#a855f7' }}
+-            onMouseLeave={e => { (e.currentTarget).style.borderColor = 'rgba(255,255,255,0.06)'; (e.currentTarget).style.color = '#52525b' }}
++            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(168,85,247,0.3)'; e.currentTarget.style.color = '#a855f7' }}
++            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#52525b' }}
+           >
+             <Paperclip size={16} />
+           </button>
+           <button
+-            onClick={() => { isRecording ? stopRecording() : startRecording(); playSound('click') }}
++            onClick={() => {
++              if (isRecording) {
++                stopRecording()
++              } else {
++                startRecording()
++              }
++              playSound('click')
++            }}
+             title={isRecording ? 'Stop & transcribe' : 'Speak (whisper.cpp)'}
+             disabled={isTranscribing}
+             style={{
+@@ -949,7 +953,16 @@ export default function AssistantView() {
+   )
+ }
+ 
+-function QuickModelBtn({ label, name, isAvailable, onSelect, onPull, isActive }: any) {
++interface QuickModelBtnProps {
++  label: string
++  name: string
++  isAvailable?: boolean
++  onSelect: (name: string) => void
++  onPull: (name: string) => void
++  isActive: boolean
++}
++
++function QuickModelBtn({ label, name, isAvailable, onSelect, onPull, isActive }: QuickModelBtnProps) {
+   return (
+     <button
+       onClick={() => isAvailable ? onSelect(name) : onPull(name)}
+@@ -972,15 +985,16 @@ function QuickModelBtn({ label, name, isAvailable, onSelect, onPull, isActive }:
+   )
+ }
+ 
+-function ToolStepCard({ name, args, result }: { name: string; args: any; result?: string }) {
++function ToolStepCard({ name, args, result }: { name: string; args: unknown; result?: string }) {
+   const [open, setOpen] = useState(!!result)
+-  const argStr = name === 'exec_command' ? args?.command
+-    : name === 'read_file' ? args?.path
+-    : name === 'search_packages' ? args?.query
+-    : name === 'list_directory' ? args?.path
++  const typedArgs = args as Record<string, string> | undefined
++  const argStr = name === 'exec_command' ? typedArgs?.command
++    : name === 'read_file' ? typedArgs?.path
++    : name === 'search_packages' ? typedArgs?.query
++    : name === 'list_directory' ? typedArgs?.path
+     : JSON.stringify(args ?? {})
+ 
+-  const TOOL_ICONS: Record<string, any> = {
++  const TOOL_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
+     exec_command: Terminal,
+     read_file: FolderOpen,
+     get_system_stats: Activity,
+@@ -1122,7 +1136,7 @@ const MessageMarkdown = memo(function MessageMarkdown({ content, isStreaming }:
+       rehypePlugins={[rehypeKatex]}
+       components={{
+         // Code blocks → ArtifactView
+-        code({ node, className, children, ...props }: any) {
++        code({ className, children, ...props }: ComponentPropsWithoutRef<'code'> & { inline?: boolean }) {
+           const isBlock = !props.inline
+           const lang = (className ?? '').replace('language-', '')
+           if (isBlock) {
+@@ -1134,50 +1148,50 @@ const MessageMarkdown = memo(function MessageMarkdown({ content, isStreaming }:
+             </code>
+           )
+         },
+-        p({ children }: any) {
++        p({ children }: ComponentPropsWithoutRef<'p'>) {
+           return <p style={{ margin: '0 0 8px', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{children}</p>
+         },
+-        h1({ children }: any) {
++        h1({ children }: ComponentPropsWithoutRef<'h1'>) {
+           return <h1 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--crimson)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '16px 0 8px', borderBottom: '1px solid var(--crimson-20)', paddingBottom: '6px' }}>{children}</h1>
+         },
+-        h2({ children }: any) {
++        h2({ children }: ComponentPropsWithoutRef<'h2'>) {
+           return <h2 style={{ fontSize: '14px', fontWeight: 'bold', color: '#f4f4f5', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '14px 0 6px' }}>{children}</h2>
+         },
+-        h3({ children }: any) {
++        h3({ children }: ComponentPropsWithoutRef<'h3'>) {
+           return <h3 style={{ fontSize: '13px', fontWeight: 'bold', color: '#a1a1aa', fontFamily: 'monospace', margin: '12px 0 4px' }}>{children}</h3>
+         },
+-        ul({ children }: any) {
++        ul({ children }: ComponentPropsWithoutRef<'ul'>) {
+           return <ul style={{ margin: '6px 0 10px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>{children}</ul>
+         },
+-        ol({ children }: any) {
++        ol({ children }: ComponentPropsWithoutRef<'ol'>) {
+           return <ol style={{ margin: '6px 0 10px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>{children}</ol>
+         },
+-        li({ children }: any) {
++        li({ children }: ComponentPropsWithoutRef<'li'>) {
+           return <li style={{ fontSize: '14px', color: '#d4d4d8', lineHeight: 1.6 }}>{children}</li>
+         },
+-        blockquote({ children }: any) {
++        blockquote({ children }: ComponentPropsWithoutRef<'blockquote'>) {
+           return <blockquote style={{ borderLeft: '3px solid var(--crimson)', paddingLeft: '12px', margin: '8px 0', color: '#71717a', fontStyle: 'italic' }}>{children}</blockquote>
+         },
+-        table({ children }: any) {
++        table({ children }: ComponentPropsWithoutRef<'table'>) {
+           return (
+             <div style={{ overflowX: 'auto', margin: '10px 0' }}>
+               <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', fontFamily: 'monospace' }}>{children}</table>
+             </div>
+           )
+         },
+-        th({ children }: any) {
++        th({ children }: ComponentPropsWithoutRef<'th'>) {
+           return <th style={{ padding: '6px 12px', background: 'var(--crimson-08)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--crimson)', textAlign: 'left', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{children}</th>
+         },
+-        td({ children }: any) {
++        td({ children }: ComponentPropsWithoutRef<'td'>) {
+           return <td style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.05)', color: '#d4d4d8' }}>{children}</td>
+         },
+         hr() {
+           return <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)', margin: '12px 0' }} />
+         },
+-        strong({ children }: any) {
++        strong({ children }: ComponentPropsWithoutRef<'strong'>) {
+           return <strong style={{ color: '#f4f4f5', fontWeight: 'bold' }}>{children}</strong>
+         },
+-        a({ href, children }: any) {
++        a({ href, children }: ComponentPropsWithoutRef<'a'>) {
+           return <a href={href} style={{ color: 'var(--crimson)', textDecoration: 'underline', textUnderlineOffset: '3px' }} target="_blank" rel="noreferrer">{children}</a>
+         },
+       }}

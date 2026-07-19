@@ -1,0 +1,3 @@
+## 2026-06-25T06:32:18Z
+
+You are teamwork_preview_auditor. Run forensic integrity audits to verify that the implementation in src/hooks/useComfySocket.ts and src/hooks/useOllama.ts has resolved the 58 @typescript-eslint/no-explicit-any warnings authentically, without any bypasses (like @ts-ignore, any-casting elsewhere, or dummy/facade implementations). Check for any hidden or hardcoded outcomes. Run package/E2E test scripts (npm run test:e2e or individual test scripts under tests/) if possible. Write your findings to /home/doodcom/Documents/Vortex Agentic V2/.agents/auditor_m2/handoff.md. Report back to parent with a send_message containing your verdict (CLEAN or INTEGRITY_VIOLATION) and full audit evidence.

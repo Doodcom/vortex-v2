@@ -1,0 +1,13 @@
+--- electron/main.ts
++++ electron/main.ts
+@@ -315,5 +315,10 @@
+ app.whenReady().then(async () => {
++  if (process.argv.includes('--dry-run')) {
++    console.log('[Main] Dry-run check requested. Exiting cleanly.')
++    app.quit()
++    return
++  }
+   await startComfyUI()
+   createWindow()
+   createTray()
+ })

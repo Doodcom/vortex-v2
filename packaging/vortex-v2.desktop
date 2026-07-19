@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Vortex V2
+Comment=System updater and tuner suite for CachyOS
+Exec=vortex-v2 %U
+Icon=vortex-v2
+Terminal=false
+Categories=Utility;System;
+StartupWMClass=Vortex V2

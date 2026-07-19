@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(node_modules/.bin/electron-rebuild -f -w better-sqlite3)",
+      "Bash(npx electron-rebuild *)",
+      "Bash(node --input-type=module)",
+      "Bash(npx esbuild *)",
+      "Bash(rm -rf node_modules/.vite)",
+      "Bash(npm run *)"
+    ]
+  }
+}

@@ -1,0 +1,266 @@
+diff --git a/src/components/AssistantView.tsx b/src/components/AssistantView.tsx
+--- a/src/components/AssistantView.tsx
++++ b/src/components/AssistantView.tsx
+@@ -108,13 +108,14 @@
+         const arr = await blob.arrayBuffer()
+         const b64 = btoa(String.fromCharCode(...new Uint8Array(arr)))
+         setIsTranscribing(true)
+         try {
+-          const res = await (window as any).electron?.voiceTranscribe?.({ audioBase64: b64, mimeType: mime })
++          const res = await window.electron?.voiceTranscribe?.({ audioBase64: b64, mimeType: mime })
+           if (res?.success && res.text) setInput(prev => (prev ? prev + ' ' : '') + res.text)
+           else notify('Transcription failed', res?.error || 'Whisper not available', 'error')
+         } finally { setIsTranscribing(false) }
+       }
+       rec.start()
+       setIsRecording(true)
+-    } catch (e: any) {
+-      notify('Microphone unavailable', e.message || 'Could not access microphone', 'error')
++    } catch (e) {
++      const message = e instanceof Error ? e.message : String(e)
++      notify('Microphone unavailable', message || 'Could not access microphone', 'error')
+     }
+   }
+@@ -150,13 +151,13 @@
+           .trim()
+           .slice(0, 800)
+         if (clean) {
+-          ;(window as any).electron?.voiceSpeak?.({ text: clean }).then((res: any) => {
++          window.electron?.voiceSpeak?.({ text: clean }).then((res) => {
+             if (res?.success && res.audioBase64) {
+               try {
+                 stopSpeech() // interrupt any previous playback first
+                 const audio = new Audio(`data:audio/wav;base64,${res.audioBase64}`)
+                 currentAudioRef.current = audio
+                 audio.onended = () => { currentAudioRef.current = null; setIsSpeaking(false) }
+                 audio.onerror = () => { currentAudioRef.current = null; setIsSpeaking(false) }
+                 setIsSpeaking(true)
+                 audio.play().catch(() => { setIsSpeaking(false) })
+@@ -197,7 +198,7 @@
+ 
+   useEffect(() => {
+     async function checkProject() {
+-      const status = await (window as any).electron.ragStatus()
++      const status = await window.electron.ragStatus()
+       if (status.path) setProject(status)
+     }
+     checkProject()
+@@ -213,7 +214,7 @@
+   const handleSelectProject = async () => {
+     setIsScanning(true)
+     try {
+-      const res = await (window as any).electron.ragSelectProject()
++      const res = await window.electron.ragSelectProject()
+       if (res) setProject(res)
+     } finally {
+       setIsScanning(false)
+@@ -231,19 +232,19 @@
+     if (!isGreeting) {
+       if (contextFlags.memory) {
+-        const memories = await (window as any).electron.memoryGetAll()
++        const memories = await window.electron.memoryGetAll()
+         if (memories && memories.length > 0) {
+-          const facts = memories.map((m: any) => `- ${m.fact}`).join('\n')
++          const facts = memories.map((m) => `- ${m.fact}`).join('\n')
+           finalPrompt = `Persistent Memory (Learned Facts):\n${facts}\n\n${finalPrompt}`
+         }
+       }
+ 
+       if (project && contextFlags.rag) {
+-        const context = await (window as any).electron.ragGetContext(text)
++        const context = await window.electron.ragGetContext(text)
+         if (context) finalPrompt = `${context}\n\nUser Question: ${finalPrompt}`
+       }
+ 
+       if (contextFlags.terminal) {
+-        const termBuffer: string = await (window as any).electron.ptyGetBuffer?.() ?? ''
++        const termBuffer: string = await window.electron.ptyGetBuffer?.() ?? ''
+         if (termBuffer.trim().length > 80) {
+           finalPrompt = `Recent terminal output:\n\`\`\`\n${termBuffer.slice(-2000)}\n\`\`\`\n\n${finalPrompt}`
+         }
+@@ -280,18 +281,18 @@
+ 
+   const handleAttachFile = async () => {
+-    const result = await (window as any).electron.dialogOpenFile()
++    const result = await window.electron.dialogOpenFile()
+     if (!result || 'error' in result) return
+ 
+     const ext = result.name.split('.').pop()?.toLowerCase()
+     const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext || '')
+ 
+     if (isImage) {
+-      const base64 = await (window as any).electron.systemReadLocalImage(result.path)
++      const base64 = await window.electron.systemReadLocalImage(result.path)
+       if (base64 && !base64.error) {
+         setAttachedFile({ name: result.name, content: base64, type: 'image' })
+       }
+     } else {
+       setAttachedFile({ name: result.name, content: result.content, truncated: result.truncated, type: 'text' })
+     }
+     playSound('click')
+   }
+@@ -301,7 +302,7 @@
+     setIsDiagnosing(true)
+     try {
+-      const logs = await (window as any).electron.systemGetErrorLogs(20)
++      const logs = await window.electron.systemGetErrorLogs(20)
+       const prompt = `I am experiencing some system issues. Here are the last 20 critical entries from my journalctl logs:\n\n\`\`\`\n${logs}\n\`\`\`\n\nPlease analyze these logs, explain what might be going wrong, and suggest a fix.`
+       sendMessage(prompt)
+     } catch (e) {
+@@ -737,7 +738,7 @@
+               </div>
+             </motion.div>
+           )}
+-          {messages.map((msg: any, i: number) => {
++          {messages.map((msg, i: number) => {
+             if (msg.role === 'tool_step') {
+               return (
+                 <motion.div key={`ts-${msg.stepId}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+@@ -949,7 +950,16 @@
+   )
+ }
+ 
+-function QuickModelBtn({ label, name, isAvailable, onSelect, onPull, isActive }: any) {
++interface QuickModelBtnProps {
++  label: string
++  name: string
++  isAvailable: boolean | undefined
++  onSelect: (name: string) => void
++  onPull: (name: string) => void
++  isActive: boolean
++}
++
++function QuickModelBtn({ label, name, isAvailable, onSelect, onPull, isActive }: QuickModelBtnProps) {
+   return (
+     <button
+       onClick={() => isAvailable ? onSelect(name) : onPull(name)}
+@@ -972,13 +982,14 @@
+ }
+ 
+-function ToolStepCard({ name, args, result }: { name: string; args: any; result?: string }) {
++function ToolStepCard({ name, args, result }: { name: string; args: unknown; result?: string }) {
+   const [open, setOpen] = useState(!!result)
+-  const argStr = name === 'exec_command' ? args?.command
+-    : name === 'read_file' ? args?.path
+-    : name === 'search_packages' ? args?.query
+-    : name === 'list_directory' ? args?.path
++  const typedArgs = args as Record<string, unknown> | null | undefined
++  const argStr = name === 'exec_command' ? typedArgs?.command as string | undefined
++    : name === 'read_file' ? typedArgs?.path as string | undefined
++    : name === 'search_packages' ? typedArgs?.query as string | undefined
++    : name === 'list_directory' ? typedArgs?.path as string | undefined
+     : JSON.stringify(args ?? {})
+ 
+-  const TOOL_ICONS: Record<string, any> = {
++  const TOOL_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+     exec_command: Terminal,
+     read_file: FolderOpen,
+@@ -1122,59 +1133,59 @@
+       rehypePlugins={[rehypeKatex]}
+       components={{
+         // Code blocks → ArtifactView
+-        code({ node, className, children, ...props }: any) {
++        code({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'> & { inline?: boolean }) {
+           const isBlock = !props.inline
+           const lang = (className ?? '').replace('language-', '')
+           if (isBlock) {
+             return <ArtifactView code={String(children).replace(/\n$/, '')} language={lang || 'text'} isStreaming={isStreaming} />
+           }
+           return (
+             <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--crimson)', fontFamily: 'monospace', fontSize: '0.875em' }}>
+               {children}
+             </code>
+           )
+         },
+-        p({ children }: any) {
+-          return <p style={{ margin: '0 0 8px', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{children}</p>
+-        },
+-        h1({ children }: any) {
+-          return <h1 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--crimson)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '16px 0 8px', borderBottom: '1px solid var(--crimson-20)', paddingBottom: '6px' }}>{children}</h1>
+-        },
+-        h2({ children }: any) {
+-          return <h2 style={{ fontSize: '14px', fontWeight: 'bold', color: '#f4f4f5', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '14px 0 6px' }}>{children}</h2>
+-        },
+-        h3({ children }: any) {
+-          return <h3 style={{ fontSize: '13px', fontWeight: 'bold', color: '#a1a1aa', fontFamily: 'monospace', margin: '12px 0 4px' }}>{children}</h3>
+-        },
+-        ul({ children }: any) {
+-          return <ul style={{ margin: '6px 0 10px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>{children}</ul>
+-        },
+-        ol({ children }: any) {
+-          return <ol style={{ margin: '6px 0 10px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>{children}</ol>
+-        },
+-        li({ children }: any) {
+-          return <li style={{ fontSize: '14px', color: '#d4d4d8', lineHeight: 1.6 }}>{children}</li>
+-        },
+-        blockquote({ children }: any) {
+-          return <blockquote style={{ borderLeft: '3px solid var(--crimson)', paddingLeft: '12px', margin: '8px 0', color: '#71717a', fontStyle: 'italic' }}>{children}</blockquote>
+-        },
+-        table({ children }: any) {
+-          return (
+-            <div style={{ overflowX: 'auto', margin: '10px 0' }}>
+-              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', fontFamily: 'monospace' }}>{children}</table>
+-            </div>
+-          )
+-        },
+-        th({ children }: any) {
+-          return <th style={{ padding: '6px 12px', background: 'var(--crimson-08)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--crimson)', textAlign: 'left', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{children}</th>
+-        },
+-        td({ children }: any) {
+-          return <td style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.05)', color: '#d4d4d8' }}>{children}</td>
+-        },
+-        hr() {
+-          return <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)', margin: '12px 0' }} />
+-        },
+-        strong({ children }: any) {
+-          return <strong style={{ color: '#f4f4f5', fontWeight: 'bold' }}>{children}</strong>
+-        },
+-        a({ href, children }: any) {
+-          return <a href={href} style={{ color: 'var(--crimson)', textDecoration: 'underline', textUnderlineOffset: '3px' }} target="_blank" rel="noreferrer">{children}</a>
++        p({ children, ...props }: React.ComponentPropsWithoutRef<'p'>) {
++          return <p style={{ margin: '0 0 8px', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }} {...props}>{children}</p>
++        },
++        h1({ children, ...props }: React.ComponentPropsWithoutRef<'h1'>) {
++          return <h1 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--crimson)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '16px 0 8px', borderBottom: '1px solid var(--crimson-20)', paddingBottom: '6px' }} {...props}>{children}</h1>
++        },
++        h2({ children, ...props }: React.ComponentPropsWithoutRef<'h2'>) {
++          return <h2 style={{ fontSize: '14px', fontWeight: 'bold', color: '#f4f4f5', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '14px 0 6px' }} {...props}>{children}</h2>
++        },
++        h3({ children, ...props }: React.ComponentPropsWithoutRef<'h3'>) {
++          return <h3 style={{ fontSize: '13px', fontWeight: 'bold', color: '#a1a1aa', fontFamily: 'monospace', margin: '12px 0 4px' }} {...props}>{children}</h3>
++        },
++        ul({ children, ...props }: React.ComponentPropsWithoutRef<'ul'>) {
++          return <ul style={{ margin: '6px 0 10px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }} {...props}>{children}</ul>
++        },
++        ol({ children, ...props }: React.ComponentPropsWithoutRef<'ol'>) {
++          return <ol style={{ margin: '6px 0 10px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }} {...props}>{children}</ol>
++        },
++        li({ children, ...props }: React.ComponentPropsWithoutRef<'li'>) {
++          return <li style={{ fontSize: '14px', color: '#d4d4d8', lineHeight: 1.6 }} {...props}>{children}</li>
++        },
++        blockquote({ children, ...props }: React.ComponentPropsWithoutRef<'blockquote'>) {
++          return <blockquote style={{ borderLeft: '3px solid var(--crimson)', paddingLeft: '12px', margin: '8px 0', color: '#71717a', fontStyle: 'italic' }} {...props}>{children}</blockquote>
++        },
++        table({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
++          return (
++            <div style={{ overflowX: 'auto', margin: '10px 0' }}>
++              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', fontFamily: 'monospace' }} {...props}>{children}</table>
++            </div>
++          )
++        },
++        th({ children, ...props }: React.ComponentPropsWithoutRef<'th'>) {
++          return <th style={{ padding: '6px 12px', background: 'var(--crimson-08)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--crimson)', textAlign: 'left', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }} {...props}>{children}</th>
++        },
++        td({ children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
++          return <td style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.05)', color: '#d4d4d8' }} {...props}>{children}</td>
++        },
++        hr() {
++          return <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)', margin: '12px 0' }} />
++        },
++        strong({ children, ...props }: React.ComponentPropsWithoutRef<'strong'>) {
++          return <strong style={{ color: '#f4f4f5', fontWeight: 'bold' }} {...props}>{children}</strong>
++        },
++        a({ href, children, ...props }: React.ComponentPropsWithoutRef<'a'>) {
++          return <a href={href} style={{ color: 'var(--crimson)', textDecoration: 'underline', textUnderlineOffset: '3px' }} target="_blank" rel="noreferrer" {...props}>{children}</a>
+         },
+       }}

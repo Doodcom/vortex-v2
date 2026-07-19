@@ -1,0 +1,370 @@
+diff --git a/src/types/electron.d.ts b/src/types/electron.d.ts
+index 6cb06ef..482fdcc 100644
+--- a/src/types/electron.d.ts
++++ b/src/types/electron.d.ts
+@@ -1,3 +1,206 @@
++export interface SystemNetworkStats {
++  rx_sec: number;
++  tx_sec: number;
++  iface: string;
++}
++
++export interface SystemGPUStats {
++  model: string;
++  utilizationGpu: number;
++  utilizationMemory: number;
++  memoryTotal: number;
++  memoryUsed: number;
++  temperatureGpu: number;
++  powerDraw: number;
++  powerLimit: number;
++  fanSpeed: number;
++  clockCore: number;
++}
++
++export interface SystemStats {
++  cpu: {
++    manufacturer: string;
++    brand: string;
++    speed: number;
++    cores: number;
++    load: number;
++  };
++  memory: {
++    total: number;
++    free: number;
++    used: number;
++    active: number;
++  };
++  storage: {
++    used: number;
++    size: number;
++    use: number;
++  };
++  network: SystemNetworkStats;
++  gpu: SystemGPUStats | null;
++}
++
++export interface OllamaModelDetails {
++  parent_model?: string;
++  format?: string;
++  family?: string;
++  families?: string[];
++  parameter_size?: string;
++  quantization_level?: string;
++}
++
++export interface OllamaModel {
++  name: string;
++  model: string;
++  modified_at: string;
++  size: number;
++  digest: string;
++  details?: OllamaModelDetails;
++}
++
++export type OllamaMessage =
++  | { role: 'user' | 'assistant' | 'system'; content: string; images?: string[] }
++  | { role: 'tool_step'; stepId: string; name: string; args: unknown; result?: unknown; error?: string }
++  | { role: 'orch_agent'; agentId: number; agentRole: string; status: 'working' | 'done'; output?: string };
++
++export interface NetworkStatItem {
++  iface: string;
++  rx_sec: number;
++  tx_sec: number;
++  rx_bytes: number;
++  tx_bytes: number;
++  operstate: string;
++  ip4: string;
++  mac: string;
++  type: string;
++}
++
++export interface NetworkConnectionItem {
++  protocol: string;
++  localaddr: string;
++  localport: string;
++  peeraddr: string;
++  peerport: string;
++  state: string;
++  pid: number;
++  process: string;
++}
++
++export interface ProcessListItem {
++  pid: number;
++  name: string;
++  cpu: number;
++  mem: number;
++  memRss: number;
++  command: string;
++  user: string;
++  state: string;
++  started: string;
++}
++
++export interface DockerContainer {
++  id: string;
++  name: string;
++  image: string;
++  state: string;
++  status: string;
++  cpu_percent: number;
++  mem_usage: number;
++  mem_limit: number;
++  net_io: {
++    rx: number;
++    tx: number;
++  };
++}
++
++export interface SystemdUnit {
++  unit: string;
++  load: string;
++  active: string;
++  sub: string;
++  description: string;
++}
++
++export interface DiskLayoutItem {
++  device: string;
++  name: string;
++  type: string;
++  size: number;
++  vendor: string;
++  model: string;
++  serial: string;
++  firmwareRevision: string;
++  smartStatus: string;
++}
++
++export interface DiskFilesystemItem {
++  fs: string;
++  type: string;
++  size: number;
++  used: number;
++  use: number;
++  mount: string;
++}
++
++export interface ContextMenuProps {
++  x: number;
++  y: number;
++  editFlags?: {
++    canCut?: boolean;
++    canCopy?: boolean;
++    canPaste?: boolean;
++  };
++}
++
++export interface PullProgress {
++  status: string;
++  completed?: number;
++  total?: number;
++}
++
++export interface TokenUsage {
++  promptTokens: number;
++  completionTokens: number;
++}
++
++export interface OrchAgentEvent {
++  agentId: number;
++  role: string;
++  status: 'working' | 'done';
++  output?: string;
++}
++
++export interface AgentStepEvent {
++  type: 'call' | 'result';
++  name: string;
++  args?: unknown;
++  result?: string;
++  stepId: number;
++}
++
++export interface NotificationEntry {
++  id?: number | string;
++  title: string;
++  body: string;
++  type: 'info' | 'success' | 'warning' | 'error';
++  timestamp?: string | number;
++}
++
++export interface ElectronEventMap {
++  'vortex-notify': (entry: NotificationEntry) => void;
++  'pty-data': (data: { tabId: string; text: string }) => void;
++  'pty-done': (data: { tabId: string; exitCode: number }) => void;
++  'update-log': (text: string) => void;
++  'ollama-stream': (chunk: string) => void;
++  'ollama-pull-progress': (progress: PullProgress) => void;
++  'ollama-token': (token: string) => void;
++  'ollama-done': () => void;
++  'ollama-error': (err: string) => void;
++  'ollama-token-usage': (usage: TokenUsage) => void;
++  'ollama-orch-agent': (data: OrchAgentEvent) => void;
++  'ollama-agent-step': (data: AgentStepEvent) => void;
++}
++
+ export interface ElectronAPI {
+   execCommand: (command: string) => Promise<{
+     success: boolean
+@@ -5,33 +208,19 @@ export interface ElectronAPI {
+     stderr: string
+     exitCode: number
+   }>
+-  getSystemStats: () => Promise<{
+-    cpu: {
+-      manufacturer: string
+-      brand: string
+-      speed: number
+-      cores: number
+-      load: number
+-    }
+-    memory: {
+-      total: number
+-      free: number
+-      used: number
+-      active: number
+-    }
+-    network: any
+-  }>
++  getSystemStats: () => Promise<SystemStats>
+   windowControl: (action: 'minimize' | 'maximize' | 'close') => void
+   
+   // Ollama
+-  ollamaListModels: () => Promise<any[]>
+-  ollamaChat: (payload: { model: string, messages: any[] }) => Promise<{ success: boolean, error?: string }>
+-  ollamaAgenticChat: (payload: { model: string, messages: any[] }) => Promise<{ success: boolean, error?: string }>
+-  ollamaOrchestrate: (payload: { model: string, messages: any[], customPrompt?: string, searxngUrl?: string }) => Promise<{ success: boolean, error?: string }>
++  ollamaListModels: () => Promise<OllamaModel[]>
++  ollamaChat: (payload: { model: string, messages: OllamaMessage[] }) => Promise<{ success: boolean, error?: string }>
++  ollamaAgenticChat: (payload: { model: string, messages: OllamaMessage[] }) => Promise<{ success: boolean, error?: string }>
++  ollamaOrchestrate: (payload: { model: string, messages: OllamaMessage[], customPrompt?: string, searxngUrl?: string }) => Promise<{ success: boolean, error?: string }>
+   ollamaPullModel: (payload: { name: string }) => Promise<{ success: boolean; error?: string }>
+   ollamaDeleteModel: (payload: { name: string }) => Promise<{ success: boolean; error?: string }>
+   ollamaCancel: () => Promise<{ success: boolean }>
+   ollamaPurge: () => Promise<{ success: boolean }>
++  ollamaQuickChat: (payload: { model: string; system?: string; user: string }) => Promise<{ success: boolean; content: string; error?: string }>
+   ollamaServiceStart: () => Promise<{ ok: boolean; already?: boolean; error?: string }>
+   ollamaServiceStop: () => Promise<{ ok: boolean }>
+ 
+@@ -39,9 +228,20 @@ export interface ElectronAPI {
+   systemCheckUpdates: () => Promise<{ repo: string[]; aur: string[] }>
+   systemUpgrade: () => Promise<{ success: boolean; output: string; error?: string }>
+   aiUpdateComponents: () => Promise<{ success: boolean; log: string }>
++  comfyPurge: () => Promise<{ success: boolean; error?: string }>
+   systemCleanup: (type: 'cache' | 'orphans' | 'logs' | 'all') => Promise<{ success: boolean; output: string; error?: string }>
++  systemCleanupAnalyze: () => Promise<{ success: boolean; categories: { name: string; sizeBytes: number; paths: string[] }[]; error?: string }>
++  systemCleanupExecute: (categories: string[]) => Promise<{ success: boolean; logs: string; error?: string }>
++  logRemediationAnalyze: (p: { unit?: string; lines?: number; model?: string }) => Promise<{ success: boolean; diagnosis?: string; problem?: string; remediationCommand?: string | null; remediationSafety?: 'safe' | 'needs-confirmation' | 'dangerous'; error?: string }>
++  logRemediationApply: (p: { command: string }) => Promise<{ success: boolean; output?: string; error?: string }>
+   systemOptimize: (type: 'ssd' | 'services' | 'performance') => Promise<{ success: boolean; output?: string; error?: string }>
+   systemGetLogs: (lines?: number) => Promise<string>
++  systemGetErrorLogs: (lines?: number) => Promise<string>
++
++  // Voice/Speech
++  voiceTranscribe: (payload: { audioBase64: string; mimeType?: string }) => Promise<{ success: boolean; text?: string; error?: string }>
++  voiceSpeak: (payload: { text: string }) => Promise<{ success: boolean; audioBase64?: string; error?: string }>
++
+ 
+   // DB / Persistence — Sessions
+   dbGetSessions: () => Promise<{ id: number; name: string; created_at: number; updated_at: number }[]>
+@@ -70,16 +270,33 @@ export interface ElectronAPI {
+   packageInstall: (p: { name: string; helper: string }) => Promise<{ success: boolean; output?: string; error?: string }>
+   packageRemove: (name: string) => Promise<{ success: boolean; output?: string; error?: string }>
+ 
++  // Flatpak
++  flatpakList: () => Promise<{ success: boolean; apps: { id: string; name: string; version: string; summary: string }[]; error?: string }>
++  flatpakSearch: (query: string) => Promise<{ success: boolean; results: { id: string; name: string; version: string; description: string }[]; error?: string }>
++  flatpakInstall: (appId: string) => Promise<{ success: boolean; error?: string }>
++  flatpakUninstall: (appId: string) => Promise<{ success: boolean; error?: string }>
++
++  // AppImage
++  appimageList: () => Promise<{ success: boolean; apps: { filename: string; path: string; registered: boolean; executable: boolean }[]; error?: string }>
++  appimageRegister: (path: string) => Promise<{ success: boolean; error?: string }>
++  appimageUnregister: (path: string) => Promise<{ success: boolean; error?: string }>
++  appimageMakeExecutable: (path: string) => Promise<{ success: boolean; error?: string }>
++
+   // Network
+-  networkStats: () => Promise<any[]>
+-  networkConnections: () => Promise<any[]>
++  networkStats: () => Promise<NetworkStatItem[]>
++  networkConnections: () => Promise<NetworkConnectionItem[]>
+ 
+   // Processes
+-  processList: () => Promise<any[]>
++  processList: () => Promise<ProcessListItem[]>
+   processKill: (p: { pid: number; signal?: string }) => Promise<{ success: boolean; error?: string }>
+ 
++  // Docker
++  dockerList: () => Promise<DockerContainer[] | { error: string }>
++  dockerControl: (p: { id: string; action: string }) => Promise<{ success: boolean; error?: string }>
++  dockerLogs: (p: { id: string; lines?: number }) => Promise<string>
++
+   // Systemd
+-  systemdListUnits: () => Promise<any[]>
++  systemdListUnits: () => Promise<SystemdUnit[]>
+   systemdControlUnit: (p: { unit: string; action: string }) => Promise<{ success: boolean; output?: string; error?: string }>
+   systemdUnitLogs: (p: { unit: string; lines?: number }) => Promise<string>
+ 
+@@ -87,7 +304,7 @@ export interface ElectronAPI {
+   systemAnalyzeBoot: () => Promise<{ summary: string; units: { time_ms: number; unit: string }[] }>
+ 
+   // Disk monitor
+-  diskInfo: () => Promise<{ layout: any[]; filesystems: any[] }>
++  diskInfo: () => Promise<{ layout: DiskLayoutItem[]; filesystems: DiskFilesystemItem[] }>
+   diskSmart: (device: string) => Promise<{ health: string; temp: number | null; raw: string }>
+ 
+   // Assets
+@@ -186,6 +403,13 @@ export interface ElectronAPI {
+   vaultRestore: (p: { filename: string }) => Promise<{ success: boolean; error?: string }>
+   vaultDelete: (p: { filename: string }) => Promise<{ success: boolean; error?: string }>
+ 
++  // Vault Sync
++  vaultGetSyncConfig: () => Promise<{ success: boolean; config: { remoteName: string; remotePath: string } | null; error?: string }>
++  vaultSaveSyncConfig: (cfg: { remoteName: string; remotePath: string }) => Promise<{ success: boolean; error?: string }>
++  vaultSyncBackup: (p: { filename: string }) => Promise<{ success: boolean; error?: string }>
++  vaultListRemote: () => Promise<{ success: boolean; backups: { filename: string }[]; error?: string }>
++  vaultDownloadRemote: (p: { filename: string }) => Promise<{ success: boolean; error?: string }>
++
+   // Benchmark
+   benchmarkRun: (payload: { tests: string[] }) => Promise<{ success: boolean; results: Record<string, { score: number; unit: string; detail: string }>; error?: string }>
+ 
+@@ -204,12 +428,34 @@ export interface ElectronAPI {
+   cronList: () => Promise<{ success: boolean; entries: { id: string; min: string; hour: string; dom: string; month: string; dow: string; command: string; comment: string; enabled: boolean }[]; error?: string }>
+   cronSave: (payload: { entries: { min: string; hour: string; dom: string; month: string; dow: string; command: string; comment: string }[] }) => Promise<{ success: boolean; error?: string }>
+ 
+-  on: (channel: string, callback: (...args: any[]) => void) => (() => void)
+-  removeListener: (channel: string, listener?: (...args: any[]) => void) => void
++  // R5: Btrfs Maintenance
++  btrfsScrub: (action: string) => Promise<{ success: boolean; status?: string; progress?: number; errors?: number; error?: string }>
++  btrfsBalance: (action: string, dusage?: number, musage?: number) => Promise<{ success: boolean; status?: string; error?: string }>
++  btrfsDefrag: (path: string) => Promise<{ success: boolean; error?: string }>
++  btrfsUsage: () => Promise<{ success: boolean; dataAlloc: number; metaAlloc: number; unallocated: number; error?: string }>
++
++  // R6: Docker Compose Builder
++  dockerComposeDeploy: (p: { projectName: string; yamlContent: string }) => Promise<{ success: boolean; log: string; error?: string }>
++  dockerComposeDown: (p: { projectName: string }) => Promise<{ success: boolean; log: string; error?: string }>
++  dockerComposeDelete: (p: { projectName: string }) => Promise<{ success: boolean; error?: string }>
++  dockerComposeList: () => Promise<{ success: boolean; projects: { name: string; path: string; status: string; services: string[] }[]; error?: string }>
++
++  openExternal: (url: string) => Promise<{ success: boolean }>
++  showContextMenu: (props: ContextMenuProps) => Promise<void>
++
++  on: <K extends keyof ElectronEventMap>(channel: K, callback: ElectronEventMap[K]) => () => void
++  removeListener: <K extends keyof ElectronEventMap>(channel: K, listener?: ElectronEventMap[K]) => void
++
++  // Missing or new methods from preload.ts
++  ptyListTabs: () => Promise<string[]>
++  systemReadTextFile: (path: string) => Promise<string>
++  systemConvertHeic: (payload: { base64: string; ext: string }) => Promise<{ success: boolean; base64?: string; error?: string }>
++  packageGetTree: (name: string) => Promise<{ name: string; version: string; direct: string[]; optional: string[]; required: string[]; depDetails: Record<string, string[]> } | null>
+ }
+ 
+ declare global {
+   interface Window {
+     electron: ElectronAPI
++    _dragTimer?: ReturnType<typeof setTimeout>
+   }
+ }

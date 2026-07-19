@@ -1,0 +1,97 @@
+
+========================================
+FILE: src/components/AssistantView.tsx
+========================================
+Line 111:40 - Unexpected any. Specify a different type.
+Code:  const res = await (window as any).electron?.voiceTranscribe?.({ audioBase64: b64, mimeType: mime })
+----------------------------------------
+Line 118:17 - Unexpected any. Specify a different type.
+Code:  } catch (e: any) {
+----------------------------------------
+Line 153:23 - Unexpected any. Specify a different type.
+Code:  ;(window as any).electron?.voiceSpeak?.({ text: clean }).then((res: any) => {
+----------------------------------------
+Line 153:79 - Unexpected any. Specify a different type.
+Code:  ;(window as any).electron?.voiceSpeak?.({ text: clean }).then((res: any) => {
+----------------------------------------
+Line 200:39 - Unexpected any. Specify a different type.
+Code:  const status = await (window as any).electron.ragStatus()
+----------------------------------------
+Line 216:36 - Unexpected any. Specify a different type.
+Code:  const res = await (window as any).electron.ragSelectProject()
+----------------------------------------
+Line 234:43 - Unexpected any. Specify a different type.
+Code:  const memories = await (window as any).electron.memoryGetAll()
+----------------------------------------
+Line 236:42 - Unexpected any. Specify a different type.
+Code:  const facts = memories.map((m: any) => `- ${m.fact}`).join('\n')
+----------------------------------------
+Line 242:42 - Unexpected any. Specify a different type.
+Code:  const context = await (window as any).electron.ragGetContext(text)
+----------------------------------------
+Line 247:53 - Unexpected any. Specify a different type.
+Code:  const termBuffer: string = await (window as any).electron.ptyGetBuffer?.() ?? ''
+----------------------------------------
+Line 283:37 - Unexpected any. Specify a different type.
+Code:  const result = await (window as any).electron.dialogOpenFile()
+----------------------------------------
+Line 290:39 - Unexpected any. Specify a different type.
+Code:  const base64 = await (window as any).electron.systemReadLocalImage(result.path)
+----------------------------------------
+Line 304:37 - Unexpected any. Specify a different type.
+Code:  const logs = await (window as any).electron.systemGetErrorLogs(20)
+----------------------------------------
+Line 740:31 - Unexpected any. Specify a different type.
+Code:  {messages.map((msg: any, i: number) => {
+----------------------------------------
+Line 952:82 - Unexpected any. Specify a different type.
+Code:  function QuickModelBtn({ label, name, isAvailable, onSelect, onPull, isActive }: any) {
+----------------------------------------
+Line 975:69 - Unexpected any. Specify a different type.
+Code:  function ToolStepCard({ name, args, result }: { name: string; args: any; result?: string }) {
+----------------------------------------
+Line 983:36 - Unexpected any. Specify a different type.
+Code:  const TOOL_ICONS: Record<string, any> = {
+----------------------------------------
+Line 1125:55 - Unexpected any. Specify a different type.
+Code:  code({ node, className, children, ...props }: any) {
+----------------------------------------
+Line 1137:25 - Unexpected any. Specify a different type.
+Code:  p({ children }: any) {
+----------------------------------------
+Line 1140:26 - Unexpected any. Specify a different type.
+Code:  h1({ children }: any) {
+----------------------------------------
+Line 1143:26 - Unexpected any. Specify a different type.
+Code:  h2({ children }: any) {
+----------------------------------------
+Line 1146:26 - Unexpected any. Specify a different type.
+Code:  h3({ children }: any) {
+----------------------------------------
+Line 1149:26 - Unexpected any. Specify a different type.
+Code:  ul({ children }: any) {
+----------------------------------------
+Line 1152:26 - Unexpected any. Specify a different type.
+Code:  ol({ children }: any) {
+----------------------------------------
+Line 1155:26 - Unexpected any. Specify a different type.
+Code:  li({ children }: any) {
+----------------------------------------
+Line 1158:34 - Unexpected any. Specify a different type.
+Code:  blockquote({ children }: any) {
+----------------------------------------
+Line 1161:29 - Unexpected any. Specify a different type.
+Code:  table({ children }: any) {
+----------------------------------------
+Line 1168:26 - Unexpected any. Specify a different type.
+Code:  th({ children }: any) {
+----------------------------------------
+Line 1171:26 - Unexpected any. Specify a different type.
+Code:  td({ children }: any) {
+----------------------------------------
+Line 1177:30 - Unexpected any. Specify a different type.
+Code:  strong({ children }: any) {
+----------------------------------------
+Line 1180:31 - Unexpected any. Specify a different type.
+Code:  a({ href, children }: any) {
+----------------------------------------

@@ -1,0 +1,15 @@
+/* Vortex V2 — soften pkexec from "password every command" to
+ * "password once, kept for ~5 minutes" for admin (wheel) users.
+ *
+ * A Vortex maintenance run (upgrade + snapshot + cleanup) chains several
+ * pkexec calls; without this rule each one pops its own auth dialog.
+ * AUTH_ADMIN_KEEP still requires your password — it just remembers it
+ * briefly, like sudo's timestamp.
+ *
+ * Install: sudo bash scripts/install-polkit.sh
+ */
+polkit.addRule(function (action, subject) {
+  if (action.id === "org.freedesktop.policykit.exec" && subject.isInGroup("wheel")) {
+    return polkit.Result.AUTH_ADMIN_KEEP;
+  }
+});

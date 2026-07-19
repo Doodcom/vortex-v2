@@ -1,0 +1,130 @@
+--- src/hooks/useComfySocket.ts	2026-05-24 18:01:24.897546637 +0100
++++ .agents/explorer_m2_3/proposed_useComfySocket.ts	2026-06-25 02:36:53.800472836 +0100
+@@ -1,15 +1,22 @@
+ import { useState, useEffect, useRef } from 'react';
+ import { COMFY_URL } from '../lib/comfyApi';
+ 
++interface ComfyNodeState {
++  state?: string;
++  value?: number;
++  max?: number;
++  [key: string]: unknown;
++}
++
+ export function useComfySocket() {
+   const [status, setStatus] = useState('disconnected');
+   const [progress, setProgress] = useState(0);
+   const [lastImage, setLastImage] = useState<string | null>(null);
+   const [lastVideo, setLastVideo] = useState<string | null>(null);
+   const [generationError, setGenerationError] = useState<string | null>(null);
+-  const clientIdRef = useRef(Math.random().toString(36).substring(7));
++  const [clientId] = useState(() => Math.random().toString(36).substring(7));
+   const socketRef = useRef<WebSocket | null>(null);
+-  const reconnectTimeoutRef = useRef<any>(null);
++  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+ 
+   useEffect(() => {
+     function connect() {
+@@ -18,7 +25,7 @@
+ 
+       console.log('[ComfySocket] Attempting connection to 127.0.0.1:8188...');
+       // Using 127.0.0.1 explicitly to avoid localhost resolution delays/issues on some Linux setups
+-      const ws = new WebSocket(`ws://127.0.0.1:8188/ws?clientId=${clientIdRef.current}`);
++      const ws = new WebSocket(`ws://127.0.0.1:8188/ws?clientId=${clientId}`);
+       socketRef.current = ws;
+ 
+       ws.onopen = () => {
+@@ -50,51 +57,51 @@
+ 
+           // Modern ComfyUI emits progress_state instead of progress
+           if (data.type === 'progress_state') {
+-            const nodes: Record<string, any> = data.data?.nodes ?? {}
+-            const active = Object.values(nodes).find((n: any) => n.state === 'in_progress')
+-            if (active && active.max > 0) {
+-              setProgress((active.value / active.max) * 100)
++            const nodes: Record<string, ComfyNodeState> = data.data?.nodes ?? {};
++            const active = Object.values(nodes).find((n) => n.state === 'in_progress');
++            if (active && active.max && active.max > 0 && active.value !== undefined) {
++              setProgress((active.value / active.max) * 100);
+             }
+           }
+           
+           if (data.type === 'executed') {
+-            const out = data.data?.output ?? {}
++            const out = data.data?.output ?? {};
+             if (out.images?.length) {
+-              const image = out.images[0]
+-              setLastImage(`${COMFY_URL}/view?filename=${image.filename}&subfolder=${image.subfolder}&type=${image.type}`)
+-              setProgress(0)
++              const image = out.images[0];
++              setLastImage(`${COMFY_URL}/view?filename=${image.filename}&subfolder=${image.subfolder}&type=${image.type}`);
++              setProgress(0);
+             }
+-            const vidList = out.gifs ?? out.videos ?? out.mp4 ?? null
++            const vidList = out.gifs ?? out.videos ?? out.mp4 ?? null;
+             if (vidList?.length) {
+-              const vid = vidList[0]
+-              setLastVideo(`${COMFY_URL}/view?filename=${vid.filename}&subfolder=${vid.subfolder}&type=${vid.type}`)
+-              setProgress(0)
++              const vid = vidList[0];
++              setLastVideo(`${COMFY_URL}/view?filename=${vid.filename}&subfolder=${vid.subfolder}&type=${vid.type}`);
++              setProgress(0);
+             }
+           }
+ 
+           if (data.type === 'execution_error') {
+-            const raw = data.data?.exception_message ?? 'Unknown ComfyUI error'
+-            console.error('[ComfySocket] Execution error:', raw)
+-            let msg = raw
++            const raw = data.data?.exception_message ?? 'Unknown ComfyUI error';
++            console.error('[ComfySocket] Execution error:', raw);
++            let msg = raw;
+             if (raw.includes('Errno 32') || raw.includes('Broken pipe') || raw.includes('BrokenPipeError')) {
+-              msg = 'ComfyUI was interrupted (Broken Pipe). VRAM is likely exhausted — purge VRAM and try again.'
++              msg = 'ComfyUI was interrupted (Broken Pipe). VRAM is likely exhausted — purge VRAM and try again.';
+             } else if (raw.includes('CUDA out of memory') || raw.includes('out of memory') || raw.includes('OOM')) {
+-              msg = 'Out of GPU memory. Reduce resolution, close other GPU apps, or purge VRAM.'
++              msg = 'Out of GPU memory. Reduce resolution, close other GPU apps, or purge VRAM.';
+             } else if (raw.includes('No module named') || raw.includes('ImportError') || raw.includes('ModuleNotFoundError')) {
+-              msg = `Missing ComfyUI custom node dependency. Try running AI Sync in the Updates tab.`
++              msg = `Missing ComfyUI custom node dependency. Try running AI Sync in the Updates tab.`;
+             } else if (raw.includes('CUDA error') || raw.includes('device-side assert')) {
+-              msg = 'GPU error during generation. Purge VRAM and try again.'
++              msg = 'GPU error during generation. Purge VRAM and try again.';
+             } else if (raw.length > 200) {
+-              msg = raw.slice(0, 200) + '...'
++              msg = raw.slice(0, 200) + '...';
+             }
+-            setGenerationError(msg)
+-            setProgress(0)
++            setGenerationError(msg);
++            setProgress(0);
+           }
+ 
+           if (data.type === 'execution_interrupted') {
+-            console.warn('[ComfySocket] Generation interrupted')
+-            setGenerationError('Generation was interrupted by the user.')
+-            setProgress(0)
++            console.warn('[ComfySocket] Generation interrupted');
++            setGenerationError('Generation was interrupted by the user.');
++            setProgress(0);
+           }
+         } catch (e) {
+           console.error("[ComfySocket] Message parse error:", e);
+@@ -107,13 +114,13 @@
+     return () => {
+       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+       if (socketRef.current) {
+-        // Remove listeners before closing to avoid triggerring reconnect on unmount
++        // Remove listeners before closing to avoid triggering reconnect on unmount
+         socketRef.current.onclose = null;
+         socketRef.current.onerror = null;
+         socketRef.current.close();
+       }
+     };
+-  }, []);
++  }, [clientId]);
+ 
+-  return { status, progress, lastImage, lastVideo, generationError, resetError: () => setGenerationError(null), clientId: clientIdRef.current };
++  return { status, progress, lastImage, lastVideo, generationError, resetError: () => setGenerationError(null), clientId };
+ }

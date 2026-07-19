@@ -1,0 +1,262 @@
+[
+  {
+    "filePath": "/home/doodcom/Documents/Vortex Agentic V2/src/components/AssistantView.tsx",
+    "errors": [
+      {
+        "line": 111,
+        "column": 40,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 118,
+        "column": 17,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 153,
+        "column": 23,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 153,
+        "column": 79,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 200,
+        "column": 39,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 216,
+        "column": 36,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 234,
+        "column": 43,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 236,
+        "column": 42,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 242,
+        "column": 42,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 247,
+        "column": 53,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 283,
+        "column": 37,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 290,
+        "column": 39,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 304,
+        "column": 37,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 740,
+        "column": 31,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 952,
+        "column": 82,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 975,
+        "column": 69,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 983,
+        "column": 36,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1125,
+        "column": 55,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1137,
+        "column": 25,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1140,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1143,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1146,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1149,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1152,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1155,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1158,
+        "column": 34,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1161,
+        "column": 29,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1168,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1171,
+        "column": 26,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1177,
+        "column": 30,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 1180,
+        "column": 31,
+        "message": "Unexpected any. Specify a different type."
+      }
+    ]
+  },
+  {
+    "filePath": "/home/doodcom/Documents/Vortex Agentic V2/src/components/CleanerView.tsx",
+    "errors": [
+      {
+        "line": 21,
+        "column": 36,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 23,
+        "column": 17,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 34,
+        "column": 36,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 37,
+        "column": 54,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 41,
+        "column": 17,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 53,
+        "column": 36,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 61,
+        "column": 17,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 73,
+        "column": 36,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 83,
+        "column": 17,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 287,
+        "column": 93,
+        "message": "Unexpected any. Specify a different type."
+      }
+    ]
+  },
+  {
+    "filePath": "/home/doodcom/Documents/Vortex Agentic V2/src/components/DashboardView.tsx",
+    "errors": [
+      {
+        "line": 6,
+        "column": 39,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 58,
+        "column": 46,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 99,
+        "column": 27,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 101,
+        "column": 37,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 104,
+        "column": 39,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 108,
+        "column": 38,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 116,
+        "column": 27,
+        "message": "Unexpected any. Specify a different type."
+      },
+      {
+        "line": 426,
+        "column": 85,
+        "message": "Unexpected any. Specify a different type."
+      }
+    ]
+  }
+]

@@ -1,0 +1,59 @@
+/* ── UI Stabilization ──────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+pre, code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Stop Electron/Chrome from trying to be smart about scroll anchors during streaming */
+.v-assistant-messages {
+  overflow-anchor: none !important;
+}
+
+.shiki-container pre {
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+/* ── Vortex Core Styles ────────────────────────────── */
+.v-main {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--ink-950);
+  color: #f4f4f5;
+}
+
+.v-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.v-artifact pre {
+  margin: 0;
+}
+
+.v-assistant-messages::-webkit-scrollbar {
+  width: 4px;
+}
+.v-assistant-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.v-assistant-messages::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+.v-assistant-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.1);
+}

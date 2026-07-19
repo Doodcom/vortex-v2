@@ -1,0 +1,22 @@
+diff --git a/src/types/electron.d.ts b/src/types/electron.d.ts
+--- a/src/types/electron.d.ts
++++ b/src/types/electron.d.ts
+@@ -213,9 +213,10 @@
+   logRemediationAnalyze: (p: { unit?: string; lines?: number; model?: string }) => Promise<{ success: boolean; diagnosis?: string; problem?: string; remediationCommand?: string | null; remediationSafety?: 'safe' | 'needs-confirmation' | 'dangerous'; error?: string }>
+   logRemediationApply: (p: { command: string }) => Promise<{ success: boolean; output?: string; error?: string }>
+   systemOptimize: (type: 'ssd' | 'services' | 'performance') => Promise<{ success: boolean; output?: string; error?: string }>
+   systemGetLogs: (lines?: number) => Promise<string>
++  systemGetErrorLogs: (lines?: number) => Promise<string>
+ 
+   // DB / Persistence — Sessions
+   dbGetSessions: () => Promise<{ id: number; name: string; created_at: number; updated_at: number }[]>
+@@ -282,9 +283,13 @@
+   // Assets
+   systemSaveAsset: (p: { url: string; type: 'image' | 'video'; filename?: string }) => Promise<{ success: boolean; path?: string; error?: string }>
+   systemReadLocalImage: (path: string) => Promise<string | { error: string }>
++  systemReadTextFile: (path: string) => Promise<string | { error: string }>
++  systemConvertHeic: (payload: { base64: string; ext: string }) => Promise<string | { error: string }>
++  voiceTranscribe: (payload: { audioBase64: string; mimeType?: string }) => Promise<{ success: boolean; text?: string; error?: string }>
++  voiceSpeak: (payload: { text: string }) => Promise<{ success: boolean; audioBase64?: string; error?: string }>
+   systemListAssets: () => Promise<{ name: string; path: string; type: 'image' | 'video'; size: number; mtime: number; url: string }[]>
+   systemDeleteAsset: (path: string) => Promise<{ success: boolean; error?: string }>
