@@ -6,6 +6,12 @@ Vortex V2 wraps the maintenance work you'd normally do across half a dozen termi
 
 Every button maps to a standard command you could type yourself — `pacman`, `paru`, `snapper`, `fwupdmgr`, `scx_loader`, `journalctl` — with the output streamed live into the app. Privileged actions go through polkit (`pkexec`); nothing runs as root silently, and the app makes no network calls of its own beyond the actions you trigger. **[Read the full manual](MANUAL.md)** for a view-by-view description of exactly what the app does under the hood.
 
+## Screenshots
+
+| Dashboard | Scheduler (sched-ext) | Updates |
+|---|---|---|
+| ![Dashboard](screenshots/dashboard.png) | ![Scheduler](screenshots/scheduler.png) | ![Updates](screenshots/updates.png) |
+
 ## Features
 
 **Updates**

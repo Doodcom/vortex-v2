@@ -4,7 +4,7 @@
 # For AUR publishing the source line points at the GitHub release tag.
 
 pkgname=vortex-v2
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="System updater and tuner suite for CachyOS (updates, sched-ext, snapshots, cleaner)"
 arch=('x86_64')

@@ -1,7 +1,7 @@
 {
   "name": "vortex-v2",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Vortex V2 - System updater & tuner suite for CachyOS",
   "author": {
     "name": "Doodcom",

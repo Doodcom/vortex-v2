@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Cpu, MemoryStick, Bot, Shield, Zap, MessageSquare, Hash } from 'lucide-react'
+import { Cpu, MemoryStick, Shield, Zap } from 'lucide-react'
 
 interface StatusBarProps {
   stats: {
@@ -43,33 +43,7 @@ const PROFILE_COLOR: Record<string, string> = {
 export default function StatusBar({ stats }: StatusBarProps) {
   const cpuPct = stats?.cpu?.load ?? null
   const ramPct = stats?.memory ? (stats.memory.used / stats.memory.total) * 100 : null
-  const [model, setModel] = useState(() => (localStorage.getItem('vortex-default-model') ?? '').split(':')[0] || 'no model')
-  const [sessionName, setSessionName] = useState('New Chat')
   const [powerProfile, setPowerProfile] = useState<string | null>(null)
-  const [tokenUsage, setTokenUsage] = useState<{ promptTokens: number; completionTokens: number } | null>(null)
-
-  useEffect(() => {
-    const handleSessionChange = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      setSessionName(detail?.name || 'New Chat')
-    }
-    const handleModelChange = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      setModel(String(detail || '').split(':')[0] || 'no model')
-    }
-    const handleTokenUsage = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { promptTokens: number; completionTokens: number } | null
-      setTokenUsage(detail)
-    }
-    window.addEventListener('vortex-session-change', handleSessionChange)
-    window.addEventListener('vortex-model-change', handleModelChange)
-    window.addEventListener('vortex-token-usage', handleTokenUsage)
-    return () => {
-      window.removeEventListener('vortex-session-change', handleSessionChange)
-      window.removeEventListener('vortex-model-change', handleModelChange)
-      window.removeEventListener('vortex-token-usage', handleTokenUsage)
-    }
-  }, [])
 
   useEffect(() => {
     const el = window.electron
@@ -114,20 +88,6 @@ export default function StatusBar({ stats }: StatusBarProps) {
         value={ramPct !== null ? `${ramPct.toFixed(1)}%` : '--.-%'}
         color={ramPct !== null ? statColor(ramPct) : '#3f3f46'}
       />
-      <Sep />
-      <Pill icon={Bot} label="Model" value={model} color="#52525b" />
-      {tokenUsage && (
-        <>
-          <Sep />
-          <Pill icon={Hash} label="Ctx" value={`${(tokenUsage.promptTokens / 1000).toFixed(1)}k`} color="#52525b" />
-        </>
-      )}
-      <Sep />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-        <MessageSquare size={9} style={{ color: '#52525b', flexShrink: 0 }} />
-        <span style={{ color: '#3f3f46' }}>Session</span>
-        <span style={{ color: '#52525b', fontWeight: 'bold' }}>{sessionName}</span>
-      </div>
 
       {powerProfile && (
         <>
