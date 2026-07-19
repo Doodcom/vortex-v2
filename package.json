@@ -1,7 +1,7 @@
 {
   "name": "vortex-v2",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Vortex V2 - System updater & tuner suite for CachyOS",
   "author": {
     "name": "Doodcom",
@@ -29,6 +29,12 @@
     "files": [
       "dist",
       "dist-electron"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icons/128x128.png",
+        "to": "icon.png"
+      }
     ],
     "linux": {
       "target": [

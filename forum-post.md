@@ -1,4 +1,4 @@
-**Title:** Vortex V2 — a system updater & tuner GUI built for CachyOS (sched-ext switching, snapper-backed upgrades) [v1.0.0]
+**Title:** Vortex V2 — a system updater & tuner GUI built for CachyOS (sched-ext switching, snapper-backed upgrades) [v1.0.1]
 
 ---
 
@@ -17,16 +17,22 @@ I've been building a desktop app to manage my own CachyOS machine for months, an
 
 It's Electron (I know, I know), but it's snappy, and it's what let me build this solo. Everything degrades gracefully — features detect their backing tool (snapper, fwupd, scx-scheds, ufw, docker…) and hide or report cleanly when it's missing, so it runs on any Arch-based distro even though CachyOS is the target.
 
+**Screenshots:**
+
+![Dashboard](https://raw.githubusercontent.com/Doodcom/vortex-v2/main/screenshots/dashboard.png)
+
+![Scheduler](https://raw.githubusercontent.com/Doodcom/vortex-v2/main/screenshots/scheduler.png)
+
 **Install:**
 
 ```
 paru -S vortex-v2
 ```
 
-or grab the prebuilt `.pacman` / AppImage from the [GitHub release](https://github.com/Doodcom/vortex-v2/releases/tag/v1.0.0).
+or grab the prebuilt `.pacman` / AppImage from the [GitHub release](https://github.com/Doodcom/vortex-v2/releases/latest).
 
 **Source:** https://github.com/Doodcom/vortex-v2 (MIT)
 
-This is v1.0.0 — I've been running the internal version daily for months, but this public build is young, so I'd genuinely appreciate bug reports and rough edges. Issues on GitHub or replies here both work. And if you disagree with any of the design calls (looking at you, `--noconfirm`), I'm open to adding an interactive mode — tell me what you'd want.
+This is v1.0.1 — I've been running the internal version daily for months, but this public build is young, so I'd genuinely appreciate bug reports and rough edges. Issues on GitHub or replies here both work. And if you disagree with any of the design calls (looking at you, `--noconfirm`), I'm open to adding an interactive mode — tell me what you'd want.
 
 Cheers 🌪️

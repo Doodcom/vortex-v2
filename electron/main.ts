@@ -20,8 +20,10 @@ let tray: Tray | null = null
 let isQuiting = false
 
 function createTray() {
-  // Prefer the packaged red-V icon; fall back to the legacy user-local one.
+  // Prefer the icon bundled in the app resources (works for AppImage, where no
+  // system icon is installed), then the packaged system icon, then the legacy user-local one.
   const candidates = [
+    path.join(process.resourcesPath, 'icon.png'),
     '/usr/share/icons/hicolor/128x128/apps/vortex-v2.png',
     path.join(process.env.HOME || os.homedir(), '.local/share/icons/hicolor/128x128/apps/vortex-v2.png'),
   ]
