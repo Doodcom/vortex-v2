@@ -4,6 +4,8 @@
 
 Vortex V2 wraps the maintenance work you'd normally do across half a dozen terminal commands into one dashboard: full system upgrades with automatic pre-upgrade snapshots, firmware updates, sched-ext scheduler switching, cache cleaning, and health monitoring.
 
+Every button maps to a standard command you could type yourself — `pacman`, `paru`, `snapper`, `fwupdmgr`, `scx_loader`, `journalctl` — with the output streamed live into the app. Privileged actions go through polkit (`pkexec`); nothing runs as root silently, and the app makes no network calls of its own beyond the actions you trigger. **[Read the full manual](MANUAL.md)** for a view-by-view description of exactly what the app does under the hood.
+
 ## Features
 
 **Updates**
