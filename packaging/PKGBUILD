@@ -24,7 +24,7 @@ optdepends=(
   'flatpak: flatpak management in Packages'
 )
 source=("$pkgname-$pkgver.tar.gz::https://github.com/Doodcom/vortex-v2/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('d97c7ce2ba29e28d82b8fd93c14d51f91f95743edb083cf97362a6df1c41d1af')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
