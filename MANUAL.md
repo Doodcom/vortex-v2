@@ -27,11 +27,12 @@ Live system overview, refreshed every 2 seconds via the `systeminformation` libr
 The heart of the app. What it does, in order, when you hit **Upgrade All**:
 1. Creates a Snapper pre-snapshot of root (`snapper -c root create -t pre`) so any bad update is one rollback away (skipped gracefully if snapper isn't installed).
 2. Runs a **full system upgrade**: `paru -Syu --noconfirm` (or `yay`, or `pkexec pacman -Syu --noconfirm` if no AUR helper is present). This is exactly equivalent to updating manually in a terminal — kernel, drivers, everything, repo + AUR in one pass. Output streams live into the app.
+3. Runs `flatpak update -y` to bring installed Flatpak apps up to date too.
 
 > **⚠️ About `--noconfirm`:** because this is a GUI, the upgrade auto-answers the prompts you'd see in a terminal — package replacements, provider choices, and AUR PKGBUILD review are all accepted with pacman/paru defaults. 99% of the time the result is identical to pressing Enter yourself, and the automatic pre-upgrade snapshot means any bad outcome is one rollback away. But if an Arch news post says an update needs manual intervention, do that intervention in a terminal first — the Arch News panel in this view exists exactly for that. `.pacnew` config files are also not merged for you (they aren't in a manual upgrade either); watch the streamed log for warnings.
 
 Also in this view:
-- **Update check** — `checkupdates` (repo, uses a separate DB so it never touches your sync state) + `paru -Qua` (AUR).
+- **Update check** — `checkupdates` (repo, uses a separate DB so it never touches your sync state) + `paru -Qua` (AUR) + `flatpak remote-ls --updates` (Flatpak).
 - **Device Firmware** — checks LVFS via `fwupdmgr get-updates` and applies with `fwupdmgr update`. Covers SSDs, peripherals, Secure Boot dbx — note most motherboard BIOSes are not on LVFS and still need the vendor tool.
 - **Arch News** — feed from archlinux.org so you see manual-intervention notices *before* upgrading.
 
@@ -67,7 +68,7 @@ All systemd units with state; start/stop/restart/enable/disable (`systemctl`, el
 
 ### Packages
 - Search and install from the **repos** (`pacman`) and **AUR** (via paru/yay — AUR packages build as your user, never as root).
-- **Flatpak** search/install/remove and **AppImage** registration (adds .desktop entries for AppImages you point it at).
+- **Flatpak** search/install/remove, plus an **Update All** button that appears whenever Flatpak updates are pending (`flatpak update -y`), and **AppImage** registration (adds .desktop entries for AppImages you point it at).
 - Package info, file lists, and a jump into the Dep Graph.
 
 ### Dep Graph

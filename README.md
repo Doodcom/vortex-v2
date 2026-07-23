@@ -15,7 +15,7 @@ Every button maps to a standard command you could type yourself — `pacman`, `p
 ## Features
 
 **Updates**
-- Full `pacman -Syu` / `paru -Syu` system upgrades — repo + AUR in one click, kernel included
+- Full `pacman -Syu` / `paru -Syu` system upgrades — repo + AUR + Flatpak in one click, kernel included
 - **Heads-up:** upgrades run with `--noconfirm`, so pacman/paru prompts (replacements, providers, PKGBUILD review) are auto-accepted with defaults — see [the manual](MANUAL.md#updates) for details
 - Automatic Snapper pre-upgrade snapshots (one rollback away from any bad update)
 - Device firmware updates via fwupd/LVFS
