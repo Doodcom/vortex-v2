@@ -229,6 +229,8 @@ export interface ElectronAPI {
   flatpakSearch: (query: string) => Promise<{ success: boolean; results: { id: string; name: string; version: string; description: string }[]; error?: string }>
   flatpakInstall: (appId: string) => Promise<{ success: boolean; error?: string }>
   flatpakUninstall: (appId: string) => Promise<{ success: boolean; error?: string }>
+  flatpakCheckUpdates: () => Promise<{ success: boolean; updates: { id: string; name: string; version: string }[]; error?: string }>
+  flatpakUpdateAll: () => Promise<{ success: boolean; error?: string }>
 
   // AppImage
   appimageList: () => Promise<{ success: boolean; apps: { filename: string; path: string; registered: boolean; executable: boolean }[]; error?: string }>

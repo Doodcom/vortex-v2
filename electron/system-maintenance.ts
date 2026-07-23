@@ -10,7 +10,7 @@ export function setupMaintenanceHandlers(win: any) {
 
   // 9. system-check-updates
   ipcMain.handle('system-check-updates', async () => {
-    const [repo, aur] = await Promise.all([
+    const [repo, aur, flatpak] = await Promise.all([
       execPromise('checkupdates')
         .then(({ stdout }) => stdout.trim().split('\n').filter(Boolean))
         .catch(() => [] as string[]),
@@ -22,9 +22,12 @@ export function setupMaintenanceHandlers(win: any) {
           } catch {}
         }
         return [] as string[]
-      })()
+      })(),
+      execPromise('flatpak remote-ls --updates --columns=name,version')
+        .then(({ stdout }) => stdout.trim().split('\n').filter(Boolean))
+        .catch(() => [] as string[])
     ])
-    return { repo, aur }
+    return { repo, aur, flatpak }
   })
 
   // 10. system-upgrade
@@ -34,7 +37,7 @@ export function setupMaintenanceHandlers(win: any) {
 
     const helper = await detectAurHelper()
     streamLog(`> Starting system upgrade via ${helper}...`)
-    
+
     let cmd = 'pkexec'
     let args = ['pacman', '-Syu', '--noconfirm']
 
@@ -44,7 +47,13 @@ export function setupMaintenanceHandlers(win: any) {
     }
 
     const res = await runStreamingCmd(cmd, args)
-    return { success: res.success, log: res.success ? 'Upgrade completed.' : 'Upgrade failed or cancelled.' }
+    if (!res.success) {
+      return { success: false, log: 'Upgrade failed or cancelled.' }
+    }
+
+    streamLog('> Updating Flatpak applications...')
+    const flatpakRes = await runStreamingCmd('flatpak', ['update', '-y'])
+    return { success: flatpakRes.success, log: flatpakRes.success ? 'Upgrade completed.' : 'Package upgrade succeeded, but Flatpak update failed.' }
   })
 
   // 10b. system-check-firmware (fwupd — device/BIOS/SSD firmware, not covered by pacman)

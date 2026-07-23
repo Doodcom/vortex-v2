@@ -4,7 +4,7 @@ import { RefreshCcw, Package, ShieldCheck, AlertTriangle, Loader2, ChevronRight,
 import { notify } from '../lib/notifications'
 
 export default function UpdatesView() {
-  const [updates, setUpdates] = useState<{ repo: string[], aur: string[] }>({ repo: [], aur: [] })
+  const [updates, setUpdates] = useState<{ repo: string[], aur: string[], flatpak: string[] }>({ repo: [], aur: [], flatpak: [] })
   const [isChecking, setIsChecking] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [firmware, setFirmware] = useState<{ available: boolean; updates: { device: string; current: string; version?: string; summary: string }[] }>({ available: true, updates: [] })
@@ -100,7 +100,7 @@ export default function UpdatesView() {
     checkUpdates()
   }, [])
 
-  const totalUpdates = updates.repo.length + updates.aur.length
+  const totalUpdates = updates.repo.length + updates.aur.length + updates.flatpak.length
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -145,8 +145,8 @@ export default function UpdatesView() {
       </div>
 
       {/* Update Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '32px' }}>
+
         <UpdatePanel
           title="Official Repositories"
           subtitle="Pacman sync channel"
@@ -162,6 +162,15 @@ export default function UpdatesView() {
           count={updates.aur.length}
           items={updates.aur}
           color="var(--signal)"
+          isChecking={isChecking}
+        />
+
+        <UpdatePanel
+          title="Flatpak"
+          subtitle="Flathub sandboxed apps"
+          count={updates.flatpak.length}
+          items={updates.flatpak}
+          color="#a855f7"
           isChecking={isChecking}
         />
       </div>

@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('electron', {
   flatpakSearch: (query: string) => ipcRenderer.invoke('flatpak-search', query),
   flatpakInstall: (appId: string) => ipcRenderer.invoke('flatpak-install', appId),
   flatpakUninstall: (appId: string) => ipcRenderer.invoke('flatpak-uninstall', appId),
+  flatpakCheckUpdates: () => ipcRenderer.invoke('flatpak-check-updates'),
+  flatpakUpdateAll: () => ipcRenderer.invoke('flatpak-update-all'),
 
   // AppImage
   appimageList: () => ipcRenderer.invoke('appimage-list'),

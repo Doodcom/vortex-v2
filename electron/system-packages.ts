@@ -123,7 +123,7 @@ export function setupPackagesHandlers(win: any) {
   // 53. flatpak-list
   ipcMain.handle('flatpak-list', async () => {
     try {
-      const { stdout } = await execPromise('flatpak list --columns=application,name,version,summary --parsable')
+      const { stdout } = await execPromise('flatpak list --app --columns=application,name,version,description')
       const apps = stdout.trim().split('\n').filter(Boolean).map(line => {
         const [id, name, version, summary] = line.split('\t')
         return { id, name, version: version || '', summary: summary || '' }
@@ -139,14 +139,39 @@ export function setupPackagesHandlers(win: any) {
     try {
       const safeQuery = query.replace(/[^a-zA-Z0-9._-]/g, '')
       if (!safeQuery) return { success: true, results: [] }
-      const { stdout } = await execPromise(`flatpak search --columns=application,name,version,description --parsable "${safeQuery}"`)
-      const results = stdout.trim().split('\n').filter(Boolean).map(line => {
+      const { stdout } = await execPromise(`flatpak search --columns=application,name,version,description "${safeQuery}"`)
+      const results = stdout.trim().split('\n').filter(line => Boolean(line) && line.includes('\t')).map(line => {
         const [id, name, version, description] = line.split('\t')
         return { id, name, version: version || '', description: description || '' }
       })
       return { success: true, results }
     } catch (e: unknown) {
       return { success: false, error: (e as Error).message, results: [] }
+    }
+  })
+
+  // flatpak-check-updates
+  ipcMain.handle('flatpak-check-updates', async () => {
+    try {
+      const { stdout } = await execPromise('flatpak remote-ls --updates --columns=application,name,version')
+      const updates = stdout.trim().split('\n').filter(Boolean).map(line => {
+        const [id, name, version] = line.split('\t')
+        return { id, name, version: version || '' }
+      })
+      return { success: true, updates }
+    } catch (e: unknown) {
+      return { success: false, error: (e as Error).message, updates: [] }
+    }
+  })
+
+  // flatpak-update-all
+  ipcMain.handle('flatpak-update-all', async () => {
+    try {
+      streamLog('> Updating all Flatpak applications...')
+      const res = await runStreamingCmd('flatpak', ['update', '-y'])
+      return { success: res.success, error: res.success ? undefined : res.log }
+    } catch (e: unknown) {
+      return { success: false, error: (e as Error).message }
     }
   })
 

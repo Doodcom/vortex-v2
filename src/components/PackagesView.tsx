@@ -36,6 +36,8 @@ export default function PackagesView({ onExplore }: PackagesViewProps) {
   const [flatpakSearching, setFlatpakSearching] = useState(false)
   const [flatpakLoadingInstalled, setFlatpakLoadingInstalled] = useState(false)
   const [flatpakAction, setFlatpakAction] = useState<{ id: string; type: 'install' | 'uninstall' | 'idle' }>({ id: '', type: 'idle' })
+  const [flatpakUpdates, setFlatpakUpdates] = useState<{ id: string; name: string; version: string }[]>([])
+  const [flatpakUpdatingAll, setFlatpakUpdatingAll] = useState(false)
 
   // AppImage state
   const [appimages, setAppimages] = useState<{ filename: string; path: string; registered: boolean; executable: boolean }[]>([])
@@ -51,6 +53,24 @@ export default function PackagesView({ onExplore }: PackagesViewProps) {
       notify('Failed to load Flatpaks', res.error ?? '', 'error')
     }
     setFlatpakLoadingInstalled(false)
+  }
+
+  const checkFlatpakUpdates = async () => {
+    const res = await window.electron.flatpakCheckUpdates()
+    if (res.success) setFlatpakUpdates(res.updates)
+  }
+
+  const updateAllFlatpaks = async () => {
+    setFlatpakUpdatingAll(true)
+    const res = await window.electron.flatpakUpdateAll()
+    setFlatpakUpdatingAll(false)
+    if (res.success) {
+      notify('Flatpaks Updated', `${flatpakUpdates.length} app(s) updated`, 'success')
+      loadFlatpaks()
+      checkFlatpakUpdates()
+    } else {
+      notify('Update Failed', res.error ?? '', 'error')
+    }
   }
 
   const searchFlatpaks = async () => {
@@ -158,6 +178,7 @@ export default function PackagesView({ onExplore }: PackagesViewProps) {
     if (activeTab === 'flatpak') {
       setTimeout(() => {
         loadFlatpaks()
+        checkFlatpakUpdates()
       }, 0)
     } else if (activeTab === 'appimage') {
       setTimeout(() => {
@@ -544,9 +565,20 @@ export default function PackagesView({ onExplore }: PackagesViewProps) {
               <span style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#a1a1aa', fontWeight: 'bold' }}>
                 Installed Flatpaks ({flatpakInstalled.length})
               </span>
-              <button onClick={loadFlatpaks} style={{ padding: '3px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#52525b', fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <RefreshCw size={10} className={flatpakLoadingInstalled ? 'animate-spin' : ''} /> Refresh List
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {flatpakUpdates.length > 0 && (
+                  <button
+                    onClick={updateAllFlatpaks}
+                    disabled={flatpakUpdatingAll}
+                    style={{ padding: '3px 10px', borderRadius: '6px', background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.15)', color: 'var(--signal)', fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', fontWeight: 'bold', cursor: flatpakUpdatingAll ? 'default' : 'pointer', opacity: flatpakUpdatingAll ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <RefreshCw size={10} className={flatpakUpdatingAll ? 'animate-spin' : ''} /> Update All ({flatpakUpdates.length})
+                  </button>
+                )}
+                <button onClick={loadFlatpaks} style={{ padding: '3px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#52525b', fontSize: '9px', fontFamily: 'monospace', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <RefreshCw size={10} className={flatpakLoadingInstalled ? 'animate-spin' : ''} /> Refresh List
+                </button>
+              </div>
             </div>
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {flatpakLoadingInstalled ? (
